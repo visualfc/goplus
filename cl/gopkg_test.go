@@ -64,6 +64,7 @@ func TestPkgConst(t *testing.T) {
 	testSource = `package main
 
 import (
+	"fmt"
 	"pkg"
 )
 
@@ -71,7 +72,7 @@ import (
 
 	// make println
 	for _, info := range infos {
-		testSource += fmt.Sprintf("println(pkg.%v)\n", info.Name)
+		testSource += fmt.Sprintf("fmt.Printf(\"%%v,%%T\\n\",pkg.%v,pkg.%v)\n", info.Name, info.Name)
 	}
 	// make ret
 	var retList []string
