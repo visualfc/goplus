@@ -301,12 +301,6 @@ func (p *iBuilder) LoadGoVar(addr GoVarAddr) exec.Builder {
 	return p
 }
 
-// LoadGoField instr
-func (p *iBuilder) LoadGoField(index int) exec.Builder {
-	((*Builder)(p)).LoadGoField(index)
-	return p
-}
-
 // StoreGoVar instr
 func (p *iBuilder) StoreGoVar(addr GoVarAddr) exec.Builder {
 	((*Builder)(p)).StoreGoVar(addr)
@@ -316,6 +310,24 @@ func (p *iBuilder) StoreGoVar(addr GoVarAddr) exec.Builder {
 // AddrGoVar instr
 func (p *iBuilder) AddrGoVar(addr GoVarAddr) exec.Builder {
 	((*Builder)(p)).AddrGoVar(addr)
+	return p
+}
+
+// LoadGoField instr
+func (p *iBuilder) LoadGoField(index int) exec.Builder {
+	((*Builder)(p)).LoadGoField(index)
+	return p
+}
+
+// StoreGoField instr
+func (p *iBuilder) StoreGoField(index int) exec.Builder {
+	((*Builder)(p)).StoreGoField(index)
+	return p
+}
+
+// AddrGoField instr
+func (p *iBuilder) AddrGoField(index int) exec.Builder {
+	((*Builder)(p)).AddrGoField(index)
 	return p
 }
 

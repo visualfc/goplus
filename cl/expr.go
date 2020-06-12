@@ -875,10 +875,6 @@ func getFuncInfo(fun exec.FuncInfo) (name string, narg int) {
 	return "main", 0
 }
 
-var (
-	govalMap = make(map[*goValue]*exec.GoSymInfo)
-)
-
 func compileSelectorExpr(ctx *blockCtx, v *ast.SelectorExpr) func() {
 	exprX := compileExpr(ctx, v.X)
 	x := ctx.infer.Get(-1)
@@ -925,7 +921,6 @@ func compileSelectorExpr(ctx *blockCtx, v *ast.SelectorExpr) func() {
 			return func() {
 				ctx.out.LoadGoField(sf.Index[0])
 			}
-			log.Panicln("compileSelectorExpr todo: structField -", t, sf)
 		}
 		pkgPath, method := normalizeMethod(n, t, name)
 		pkg := ctx.FindGoPackage(pkgPath)

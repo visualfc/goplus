@@ -67,11 +67,18 @@ func execLoadGoField(i Instr, p *Context) {
 	v := reflect.ValueOf(p.Pop())
 	idx := i & bitsOperand
 	p.Push(v.Field(int(idx)).Interface())
-	//log.Println(rv.Field(int(idx)).Interface())
+}
 
-	//log.Println("go field ", idx)
-	//v := reflect.ValueOf(govars[idx].Addr).Elem()
-	//p.Push(v.Interface())
+func execStoreGoField(i Instr, p *Context) {
+	v := reflect.ValueOf(p.Pop())
+	idx := i & bitsOperand
+	v.Field(int(idx)).Set(reflect.ValueOf(p.Pop()))
+}
+
+func execAddrGoField(i Instr, p *Context) {
+	v := reflect.ValueOf(p.Pop())
+	idx := i & bitsOperand
+	p.Push(v.Field(int(idx)).Addr())
 }
 
 // -----------------------------------------------------------------------------
@@ -390,13 +397,6 @@ func (p *Builder) LoadGoVar(addr GoVarAddr) *Builder {
 	return p
 }
 
-// LoadGoField instr
-func (p *Builder) LoadGoField(index int) *Builder {
-	i := (opLoadGoField << bitsOpShift) | (uint32(index))
-	p.code.data = append(p.code.data, i)
-	return p
-}
-
 // StoreGoVar instr
 func (p *Builder) StoreGoVar(addr GoVarAddr) *Builder {
 	i := (opStoreGoVar << bitsOpShift) | uint32(addr)
@@ -407,6 +407,27 @@ func (p *Builder) StoreGoVar(addr GoVarAddr) *Builder {
 // AddrGoVar instr
 func (p *Builder) AddrGoVar(addr GoVarAddr) *Builder {
 	i := (opAddrGoVar << bitsOpShift) | uint32(addr)
+	p.code.data = append(p.code.data, i)
+	return p
+}
+
+// LoadGoField instr
+func (p *Builder) LoadGoField(index int) *Builder {
+	i := (opLoadGoField << bitsOpShift) | uint32(index)
+	p.code.data = append(p.code.data, uint32(i))
+	return p
+}
+
+// StoreGoField instr
+func (p *Builder) StoreGoField(index int) *Builder {
+	i := (opStoreGoField << bitsOpShift) | (uint32(index))
+	p.code.data = append(p.code.data, i)
+	return p
+}
+
+// AddrGoField instr
+func (p *Builder) AddrGoField(index int) *Builder {
+	i := (opAddrGoField << bitsOpShift) | uint32(index)
 	p.code.data = append(p.code.data, i)
 	return p
 }

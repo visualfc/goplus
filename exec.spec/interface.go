@@ -286,6 +286,12 @@ type Builder interface {
 	// LoadGoField instr
 	LoadGoField(index int) Builder
 
+	// StoreGoField instr
+	StoreGoField(index int) Builder
+
+	// AddrGoField instr
+	AddrGoField(index int) Builder
+
 	// AddrOp instr
 	AddrOp(kind Kind, op AddrOperator) Builder
 
