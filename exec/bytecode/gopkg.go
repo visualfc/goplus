@@ -63,6 +63,17 @@ func execAddrGoVar(i Instr, p *Context) {
 	p.Push(govars[idx].Addr)
 }
 
+func execLoadGoField(i Instr, p *Context) {
+	v := reflect.ValueOf(p.Pop())
+	idx := i & bitsOperand
+	p.Push(v.Field(int(idx)).Interface())
+	//log.Println(rv.Field(int(idx)).Interface())
+
+	//log.Println("go field ", idx)
+	//v := reflect.ValueOf(govars[idx].Addr).Elem()
+	//p.Push(v.Interface())
+}
+
 // -----------------------------------------------------------------------------
 
 // A ConstKind represents the specific kind of type that a Type represents.
@@ -375,6 +386,13 @@ func (p *Builder) CallGoFuncv(fun GoFuncvAddr, arity int) *Builder {
 // LoadGoVar instr
 func (p *Builder) LoadGoVar(addr GoVarAddr) *Builder {
 	i := (opLoadGoVar << bitsOpShift) | uint32(addr)
+	p.code.data = append(p.code.data, i)
+	return p
+}
+
+// LoadGoField instr
+func (p *Builder) LoadGoField(index int) *Builder {
+	i := (opLoadGoField << bitsOpShift) | (uint32(index))
 	p.code.data = append(p.code.data, i)
 	return p
 }

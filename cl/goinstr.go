@@ -240,7 +240,7 @@ func compileTypeCast(typ reflect.Type, ctx *blockCtx, v *ast.CallExpr) func() {
 			pushConstVal(ctx.out, cons)
 		}
 	}
-	ctx.infer.Ret(1, &goValue{typ})
+	ctx.infer.Ret(1, &goValue{t: typ})
 	return func() {
 		xExpr()
 		iv := in.(iValue)

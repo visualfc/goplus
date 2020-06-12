@@ -725,7 +725,7 @@ func compileSliceExpr(ctx *blockCtx, v *ast.SliceExpr) func() { // x[i:j:k]
 			logPanic(ctx, v, `cannot slice a (type *%v)`, typ)
 		}
 		typ = reflect.SliceOf(typ.Elem())
-		ctx.infer.Ret(1, &goValue{typ})
+		ctx.infer.Ret(1, &goValue{t: typ})
 	}
 	return func() {
 		exprX()
@@ -787,7 +787,7 @@ func compileIndexExpr(ctx *blockCtx, v *ast.IndexExpr) func() { // x[i]
 	} else {
 		typElem = typ.Elem()
 	}
-	ctx.infer.Ret(1, &goValue{typElem})
+	ctx.infer.Ret(1, &goValue{t: typElem})
 	return func() {
 		exprX()
 		switch kind {
@@ -875,6 +875,10 @@ func getFuncInfo(fun exec.FuncInfo) (name string, narg int) {
 	return "main", 0
 }
 
+var (
+	govalMap = make(map[*goValue]*exec.GoSymInfo)
+)
+
 func compileSelectorExpr(ctx *blockCtx, v *ast.SelectorExpr) func() {
 	exprX := compileExpr(ctx, v.X)
 	x := ctx.infer.Get(-1)
@@ -899,6 +903,13 @@ func compileSelectorExpr(ctx *blockCtx, v *ast.SelectorExpr) func() {
 				return func() {
 					log.Panicln("compileSelectorExpr: todo")
 				}
+			case exec.SymbolVar:
+				info := ctx.GetGoVarInfo(exec.GoVarAddr(addr))
+				vt := reflect.ValueOf(info.This)
+				ctx.infer.Ret(1, &goValue{t: vt.Elem().Type()})
+				return func() {
+					ctx.out.LoadGoVar(exec.GoVarAddr(addr))
+				}
 			default:
 				log.Panicln("compileSelectorExpr: unknown GoPackage symbol kind -", kind)
 			}
@@ -909,6 +920,11 @@ func compileSelectorExpr(ctx *blockCtx, v *ast.SelectorExpr) func() {
 		n, t := countPtr(vx.t)
 		name := v.Sel.Name
 		if sf, ok := t.FieldByName(name); ok {
+			exprX()
+			ctx.infer.Ret(1, &goValue{t: sf.Type})
+			return func() {
+				ctx.out.LoadGoField(sf.Index[0])
+			}
 			log.Panicln("compileSelectorExpr todo: structField -", t, sf)
 		}
 		pkgPath, method := normalizeMethod(n, t, name)
