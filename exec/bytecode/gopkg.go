@@ -70,15 +70,15 @@ func execLoadGoField(i Instr, p *Context) {
 }
 
 func execStoreGoField(i Instr, p *Context) {
-	v := reflect.ValueOf(p.Pop())
+	v := reflect.ValueOf(p.Pop()).Elem()
 	idx := i & bitsOperand
 	v.Field(int(idx)).Set(reflect.ValueOf(p.Pop()))
 }
 
 func execAddrGoField(i Instr, p *Context) {
-	v := reflect.ValueOf(p.Pop())
+	v := reflect.ValueOf(p.Pop()).Elem()
 	idx := i & bitsOperand
-	p.Push(v.Field(int(idx)).Addr())
+	p.Push(v.Field(int(idx)).Addr().Interface())
 }
 
 // -----------------------------------------------------------------------------

@@ -173,6 +173,48 @@ func TestGoVar(t *testing.T) {
 	}
 }
 
+type Base struct {
+	Info string
+}
+
+type point struct {
+	Base
+	X int
+	Y int
+}
+
+func TestGoField(t *testing.T) {
+	pkg := NewGoPackage("pkg_field")
+
+	v := point{Base{"Info"}, 1, 2}
+	pkg.RegisterVars(
+		I.Var("pt", &v),
+	)
+
+	i, ok := pkg.FindVar("pt")
+	if !ok {
+		t.Fatal("FindVar failed:", i)
+	}
+
+	b := newBuilder()
+	code := b.
+		Push("hello").
+		AddrGoVar(i).
+		AddrGoField(0).
+		StoreGoField(0).
+		Push(-1).
+		AddrGoVar(i).
+		StoreGoField(1).
+		Resolve()
+
+	ctx := NewContext(code)
+	ctx.Exec(0, code.Len())
+
+	if v.Info != "hello" || v.X != -1 {
+		t.Fatal("pt", v)
+	}
+}
+
 func TestSprint(t *testing.T) {
 	sprint, ok := I.FindFuncv("Sprint")
 	if !ok {
