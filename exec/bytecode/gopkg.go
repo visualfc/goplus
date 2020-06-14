@@ -65,12 +65,18 @@ func execAddrGoVar(i Instr, p *Context) {
 
 func execLoadGoField(i Instr, p *Context) {
 	v := reflect.ValueOf(p.Pop())
+	if v.Kind() == reflect.Ptr {
+		v = v.Elem()
+	}
 	idx := i & bitsOperand
 	p.Push(v.Field(int(idx)).Interface())
 }
 
 func execStoreGoField(i Instr, p *Context) {
-	v := reflect.ValueOf(p.Pop()).Elem()
+	v := reflect.ValueOf(p.Pop())
+	if v.Kind() == reflect.Ptr {
+		v = v.Elem()
+	}
 	idx := i & bitsOperand
 	v.Field(int(idx)).Set(reflect.ValueOf(p.Pop()))
 }
