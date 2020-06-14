@@ -163,6 +163,15 @@ Note:
 
 * `qgo -test <gopSrcDir>` converts Go+ packages into Go packages, and for every package, it call `go run <gopPkgDir>/gop_autogen.go` and `qrun -quiet <gopPkgDir>` to compare their outputs. If their outputs aren't equal, the test case fails.
 
+### Rational number: bigint, bigrat, bigfloat
+
+```go
+a := 1r << 65   // bigint, large than int64
+b := 4/5r       // bigrat
+c := b - 1/3r + 3 * 1/2r
+println(a, b, c)
+```
+
 ### Map literal
 
 ```go
@@ -198,15 +207,6 @@ e := [[a, b] for a <- arr, a < b for b <- arr, b > 2]
 x := {x: i for i, x <- [1, 3, 5, 7, 11]}
 y := {x: i for i, x <- [1, 3, 5, 7, 11], i%2 == 1}
 z := {v: k for k, v <- {1: "Hello", 3: "Hi", 5: "xsw", 7: "Go+"}, k > 3}
-```
-
-### Rational number: bigint, bigrat, bigfloat
-
-```go
-a := 1r << 65   // bigint, large than int64
-b := 4/5r       // bigrat
-c := b - 1/3r + 3 * 1/2r
-println(a, b, c)
 ```
 
 ### For loop
@@ -275,3 +275,19 @@ How these `ErrWrap expressions` work? See [Error Handling](https://github.com/qi
 All Go features (not including `cgo`) will be supported.
 
 * See [supported the Go language features](https://github.com/qiniu/goplus/wiki/Supported-Go-features).
+
+## Contributing
+
+The Go+ project welcomes all contributors. We appreciate your help!
+
+Here are [list of Go+ Contributors](https://github.com/qiniu/goplus/wiki/Goplus-Contributors). We award an email account (XXX@goplus.org) for every contributor. And we suggest you commit code by using this email account:
+
+```bash
+git config --global user.email XXX@goplus.org
+```
+
+What does `a contributor of Go+` means? He must meet one of the following conditions: 
+
+* At least one pull request of a full feature implemention.
+* At least three pull requests of feature enhancements.
+* At least ten pull requests of any kind issues.
