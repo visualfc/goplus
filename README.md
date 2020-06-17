@@ -122,10 +122,23 @@ gop install ./... # Convert Go+ packages and go install ./...
 
 Go [tutorial/14-Using-goplus-in-Go](https://github.com/qiniu/goplus/tree/master/tutorial/14-Using-goplus-in-Go) to get the source code.
 
+Note: The `gop` command isn't provided currently (in alpha stage). Instead, we provide `qrun` and `qgo` commands.
+
+
+## How to build
+
+Current version: [![GitHub release](https://img.shields.io/github/v/tag/qiniu/goplus.svg?label=)](https://github.com/qiniu/goplus/releases)
+
+```bash
+go get github.com/qiniu/goplus@vX.X.XX
+#or: git clone git@github.com:qiniu/goplus.git
+cd goplus
+go install -v ./...
+```
 
 ## Tutorials
 
-* https://github.com/qiniu/goplus/tree/master/tutorial
+See https://github.com/qiniu/goplus/tree/master/tutorial
 
 
 ## Go+ features
@@ -164,6 +177,8 @@ Note:
 * `qgo -test <gopSrcDir>` converts Go+ packages into Go packages, and for every package, it call `go run <gopPkgDir>/gop_autogen.go` and `qrun -quiet <gopPkgDir>` to compare their outputs. If their outputs aren't equal, the test case fails.
 
 ### Rational number: bigint, bigrat, bigfloat
+
+We introduce rational number as native Go+ types. We use -r suffix as a rational constant. For example, (1r << 200) means a big int whose value is equal to 2<sup>200</sup>. And 4/5r means the rational constant 4/5.
 
 ```go
 a := 1r << 65   // bigint, large than int64

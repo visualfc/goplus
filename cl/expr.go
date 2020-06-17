@@ -79,6 +79,8 @@ func compileExpr(ctx *blockCtx, expr ast.Expr) func() {
 		return compileSliceLit(ctx, v)
 	case *ast.FuncLit:
 		return compileFuncLit(ctx, v)
+	case *ast.ParenExpr:
+		return compileExpr(ctx, v.X)
 	case *ast.ListComprehensionExpr:
 		return compileListComprehensionExpr(ctx, v)
 	case *ast.MapComprehensionExpr:
@@ -138,6 +140,8 @@ var addrops = map[token.Token]exec.AddrOperator{
 	token.SHL_ASSIGN:     exec.OpLshAssign,
 	token.SHR_ASSIGN:     exec.OpRshAssign,
 	token.AND_NOT_ASSIGN: exec.OpAndNotAssign,
+	token.INC:            exec.OpInc,
+	token.DEC:            exec.OpDec,
 }
 
 func compileIdent(ctx *blockCtx, name string) func() {
