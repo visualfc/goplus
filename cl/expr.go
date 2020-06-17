@@ -726,14 +726,11 @@ func compileIndexExprLHS(ctx *blockCtx, v *ast.IndexExpr, mode compleMode) {
 	}
 }
 
-var (
-	LHS bool
-)
-
 func compileSelectorExprLHS(ctx *blockCtx, v *ast.SelectorExpr, mode compleMode) {
 	if mode == lhsDefine {
 		log.Panicln("compileSelectorExprLHS: `:=` can't be used for index expression")
 	}
+	in := ctx.infer.Get(-1)
 	exprX := compileExpr(ctx, v.X)
 	x := ctx.infer.Get(-1)
 	ctx.infer.PopN(2)
@@ -750,6 +747,9 @@ func compileSelectorExprLHS(ctx *blockCtx, v *ast.SelectorExpr, mode compleMode)
 			}
 			switch kind {
 			case exec.SymbolVar:
+				info := ctx.GetGoVarInfo(exec.GoVarAddr(addr))
+				t := reflect.TypeOf(info.This).Elem()
+				checkType(t, in, ctx.out)
 				ctx.out.StoreGoVar(exec.GoVarAddr(addr))
 			default:
 				log.Panicln("compileSelectorExprLHS: unknown GoPackage symbol kind -", kind)
@@ -761,6 +761,7 @@ func compileSelectorExprLHS(ctx *blockCtx, v *ast.SelectorExpr, mode compleMode)
 		_, t := countPtr(vx.t)
 		name := v.Sel.Name
 		if sf, ok := t.FieldByName(name); ok {
+			checkType(sf.Type, in, ctx.out)
 			exprX()
 			ctx.out.StoreGoField(sf.Index[0])
 		}
@@ -979,7 +980,11 @@ func compileSelectorExpr(ctx *blockCtx, v *ast.SelectorExpr) func() {
 			exprX()
 			ctx.infer.Ret(1, &goValue{t: sf.Type})
 			return func() {
-				ctx.out.LoadGoField(sf.Index[0])
+				if ctx.checkLHS {
+					ctx.out.AddrGoField(sf.Index[0])
+				} else {
+					ctx.out.LoadGoField(sf.Index[0])
+				}
 			}
 		}
 		pkgPath, method := normalizeMethod(n, t, name)
