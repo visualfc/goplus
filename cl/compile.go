@@ -287,6 +287,7 @@ type blockCtx struct {
 	syms      map[string]iSymbol
 	noExecCtx bool
 	checkFlag bool
+	checkLHS  bool
 }
 
 // function block ctx
