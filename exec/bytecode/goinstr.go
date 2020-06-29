@@ -237,7 +237,13 @@ func execIndex(i Instr, p *Context) {
 			v.Set(reflect.ValueOf(p.data[n-2]))
 		}
 		p.PopN(2)
-	} else { // sliceData $idx $setIndex
+	} else if (i & addrIndexFlag) != 0 { // sliceData $idx $setIndex
+		if v.Kind() == reflect.Struct {
+			p.data[n-1] = v.Addr().Interface()
+		} else {
+			p.data[n-1] = v.Interface()
+		}
+	} else {
 		p.data[n-1] = v.Interface()
 	}
 }
@@ -484,10 +490,22 @@ func (p *Builder) SetIndex(idx int) *Builder {
 	return p
 }
 
+// AddrIndex instr
+func (p *Builder) AddrIndex(idx int) *Builder {
+	if idx >= setIndexOperand {
+		p.Push(idx)
+		idx = -1
+	}
+	i := (opIndex<<bitsOpShift | addrIndexFlag) | uint32(idx&setIndexOperand)
+	p.code.data = append(p.code.data, i)
+	return p
+}
+
 const (
 	mapDeleteOperand   = 2
 	setMapIndexOperand = 3
 	setIndexFlag       = (1 << 25)
+	addrIndexFlag      = (1 << 27)
 	setIndexOperand    = setIndexFlag - 1
 	sliceIndexMask     = (1 << 13) - 1
 	// SliceConstIndexLast - slice const index max

@@ -19,6 +19,7 @@ package cl
 import (
 	"fmt"
 	"math"
+	"os"
 	"reflect"
 	"strings"
 	"testing"
@@ -575,6 +576,10 @@ import (
 	println("pkg.Info.V11[0]",pkg.Info.V11[0])
 	pkg.Info.V11[0] = nil
 	println("pkg.Info.V11",pkg.Info.V11)
+	pkg.Info.V11[1].X = -101
+	println("pkg.Info.V11[1].X",pkg.Info.V11[1].X)
+	pkg.Info.V10[0].X = -102
+	println("pkg.Info.V10[0].X",pkg.Info.V10[0].X)
 	`
 
 	fsTestPkgVar := asttest.NewSingleFileFS("/foo", "bar.gop", testSource)
@@ -594,6 +599,8 @@ import (
 	}
 	code := b.Resolve()
 
+	code.Dump(os.Stdout)
+
 	ctx := exec.NewContext(code)
 	ctx.Exec(0, code.Len())
 
@@ -607,5 +614,11 @@ import (
 	}
 	if info.V11[0] != nil {
 		t.Fatal("V11[0]", info.V11[0])
+	}
+	if info.V11[1].X != -101 {
+		t.Fatal("V11[1]", info.V11[1])
+	}
+	if info.V10[0].X != -102 {
+		t.Fatal("V10[0]", info.V10[0])
 	}
 }
