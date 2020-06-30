@@ -521,8 +521,8 @@ type testFieldInfo struct {
 	V13 []*testFieldPoint
 }
 
-func TestPkgLoadField(t *testing.T) {
-	var I = exec.NewGoPackage("pkg_test_field_load")
+func TestPkgField(t *testing.T) {
+	var I = exec.NewGoPackage("pkg_test_field")
 
 	m := make(map[int]string)
 	m[1] = "hello"
@@ -560,7 +560,7 @@ func TestPkgLoadField(t *testing.T) {
 	testSource = `package main
 
 import (
-	pkg "pkg_test_field_load"
+	pkg "pkg_test_field"
 )
 
 `
