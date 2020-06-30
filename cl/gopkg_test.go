@@ -515,8 +515,10 @@ type testFieldInfo struct {
 	V7  map[int]string
 	V8  testFieldPoint
 	V9  *testFieldPoint
-	V10 []testFieldPoint
-	V11 []*testFieldPoint
+	V10 [2]testFieldPoint
+	V11 [2]*testFieldPoint
+	V12 []testFieldPoint
+	V13 []*testFieldPoint
 }
 
 func TestPkgLoadField(t *testing.T) {
@@ -526,7 +528,7 @@ func TestPkgLoadField(t *testing.T) {
 	m[1] = "hello"
 	m[2] = "world"
 
-	var ar [11]interface{}
+	var ar [13]interface{}
 	ar[0] = true
 	ar[1] = 'A'
 	ar[2] = "Info"
@@ -536,8 +538,10 @@ func TestPkgLoadField(t *testing.T) {
 	ar[6] = m
 	ar[7] = testFieldPoint{10, 20}
 	ar[8] = &testFieldPoint{-10, -20}
-	ar[9] = []testFieldPoint{{100, 200}, {300, 400}}
-	ar[10] = []*testFieldPoint{&testFieldPoint{100, 200}, &testFieldPoint{300, 400}}
+	ar[9] = [2]testFieldPoint{{100, 200}, {300, 400}}
+	ar[10] = [2]*testFieldPoint{&testFieldPoint{100, 200}, &testFieldPoint{300, 400}}
+	ar[11] = []testFieldPoint{{100, 200}, {300, 400}}
+	ar[12] = []*testFieldPoint{&testFieldPoint{100, 200}, &testFieldPoint{300, 400}}
 
 	info := &testFieldInfo{}
 	info.V7 = make(map[int]string)
@@ -546,7 +550,7 @@ func TestPkgLoadField(t *testing.T) {
 		v.Field(i).Set(reflect.ValueOf(ar[i]))
 	}
 
-	var out [11]interface{}
+	var out [13]interface{}
 	I.RegisterVars(
 		I.Var("Info", &info),
 		I.Var("Out", &out),
@@ -574,12 +578,17 @@ import (
 	pkg.Info.V5[0] = -100
 	println("pkg.Info.V5", pkg.Info.V5)
 	println("pkg.Info.V11[0]",pkg.Info.V11[0])
+	pkg.Info.V10[0].X = -100
+	println("pkg.Info.V10[0]",pkg.Info.V10[0])
 	pkg.Info.V11[0] = nil
 	println("pkg.Info.V11",pkg.Info.V11)
+	println("pkg.Info.V11[1]",pkg.Info.V11[1])
 	pkg.Info.V11[1].X = -101
 	println("pkg.Info.V11[1].X",pkg.Info.V11[1].X)
-	pkg.Info.V10[0].X = -102
-	println("pkg.Info.V10[0].X",pkg.Info.V10[0].X)
+	pkg.Info.V12[1].X = -102
+	println("pkg.Info.V12[1].X",pkg.Info.V12[1].X)
+	pkg.Info.V13[1].X = -103
+	println("pkg.Info.V13[1].X",pkg.Info.V13[1].X)
 	`
 
 	fsTestPkgVar := asttest.NewSingleFileFS("/foo", "bar.gop", testSource)
@@ -612,13 +621,19 @@ import (
 	if info.V5[0] != -100 {
 		t.Fatal("V5", info.V5)
 	}
+	if info.V10[0].X != -100 {
+		t.Fatal("V10[0]", info.V10[0])
+	}
 	if info.V11[0] != nil {
 		t.Fatal("V11[0]", info.V11[0])
 	}
 	if info.V11[1].X != -101 {
 		t.Fatal("V11[1]", info.V11[1])
 	}
-	if info.V10[0].X != -102 {
-		t.Fatal("V10[0]", info.V10[0])
+	if info.V12[1].X != -102 {
+		t.Fatal("V12[1]", info.V12[1])
+	}
+	if info.V13[1].X != -103 {
+		t.Fatal("V13[1]", info.V13[1])
 	}
 }

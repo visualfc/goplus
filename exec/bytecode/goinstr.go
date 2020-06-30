@@ -504,8 +504,8 @@ func (p *Builder) AddrIndex(idx int) *Builder {
 const (
 	mapDeleteOperand   = 2
 	setMapIndexOperand = 3
-	setIndexFlag       = (1 << 25)
-	addrIndexFlag      = (1 << 27)
+	setIndexFlag       = (1 << 23)
+	addrIndexFlag      = (1 << 25)
 	setIndexOperand    = setIndexFlag - 1
 	sliceIndexMask     = (1 << 13) - 1
 	// SliceConstIndexLast - slice const index max

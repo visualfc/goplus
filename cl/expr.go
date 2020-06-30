@@ -975,7 +975,8 @@ func compileSelectorExpr(ctx *blockCtx, v *ast.SelectorExpr) func() {
 				vt := reflect.ValueOf(info.This)
 				ctx.infer.Ret(1, &goValue{t: vt.Elem().Type()})
 				return func() {
-					if ctx.inLHS && vt.Elem().Kind() == reflect.Array {
+					if ctx.inLHS && (vt.Elem().Kind() == reflect.Array ||
+						vt.Elem().Kind() == reflect.Struct) {
 						ctx.out.AddrGoVar(exec.GoVarAddr(addr))
 					} else {
 						ctx.out.LoadGoVar(exec.GoVarAddr(addr))
