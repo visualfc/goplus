@@ -22,19 +22,27 @@ import (
 	"flag"
 	"fmt"
 	"go/format"
+	"go/types"
 	"io/ioutil"
+	"log"
 	"os"
+	"os/exec"
+	"os/user"
 	"path/filepath"
+	"runtime"
+	"strings"
 
 	"github.com/qiniu/goplus/cmd/qexp/gopkg"
 )
 
 var (
 	flagExportDir string
+	buildPlugin   bool
 )
 
 func init() {
 	flag.StringVar(&flagExportDir, "outdir", "", "optional set export lib path, default is $GoPlusRoot/lib path")
+	flag.BoolVar(&buildPlugin, "plugin", false, "optional build lib to plugin, install to $HOME/.goplus/lib/")
 }
 
 func main() {
@@ -44,47 +52,116 @@ func main() {
 		flag.PrintDefaults()
 		return
 	}
-	var libDir string
+	var root string
 	if flagExportDir != "" {
-		libDir = flagExportDir
+		root = flagExportDir
 	} else {
-		root, err := goplusRoot()
+		var err error
+		root, err = goplusRoot()
 		if err != nil {
 			fmt.Fprintln(os.Stderr, "find goplus root failed:", err)
 			os.Exit(-1)
 		}
-		libDir = filepath.Join(root, "lib")
 	}
-
 	for _, pkgPath := range flag.Args() {
-		err := exportPkg(pkgPath, libDir)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "export pkg %q failed, %v\n", pkgPath, err)
-		} else {
-			fmt.Fprintf(os.Stdout, "export pkg %q success\n", pkgPath)
-		}
+		buildPkg(pkgPath, root, buildPlugin)
 	}
 }
 
-func exportPkg(pkgPath string, libDir string) error {
+func buildPkg(pkgPath string, root string, plugin bool) {
 	pkg, err := gopkg.Import(pkgPath)
 	if err != nil {
-		return err
+		log.Printf("import pkg %q error: %v\n", pkgPath, err)
+		return
 	}
-	var buf bytes.Buffer
-	err = gopkg.ExportPackage(pkg, &buf)
+	outdir, err := exportPkg(pkg, root)
 	if err != nil {
-		return err
+		log.Printf("export pkg %q error: %v\n", pkgPath, err)
+		return
+	}
+	log.Printf("export pkg %q success: %v", pkgPath, outdir)
+	if !plugin {
+		return
+	}
+	ofile, err := exportPlugin(pkg, root)
+	if err != nil {
+		log.Printf("insall plugin %q error: %v\n", pkgPath, err)
+		return
+	}
+	log.Printf("insall plugin %q success: %v", pkgPath, ofile)
+}
+
+func exportPkg(pkg *types.Package, root string) (string, error) {
+	var buf bytes.Buffer
+	err := gopkg.ExportPackage(pkg, &buf)
+	if err != nil {
+		return "", err
 	}
 	data, err := format.Source(buf.Bytes())
 	if err != nil {
 		fmt.Println(buf.String())
-		return err
+		return "", err
 	}
-	dir := filepath.Join(libDir, pkg.Path())
+	dir := filepath.Join(root, "lib", pkg.Path())
 	os.MkdirAll(dir, 0777)
 	err = ioutil.WriteFile(filepath.Join(dir, "gomod_export.go"), data, 0666)
-	return err
+	if err != nil {
+		return "", err
+	}
+	return dir, nil
+}
+
+const gopkgExportHeader = `// Package %s provide Go+ "%s" package, as "%s" package in Go.
+package main
+
+import (
+`
+
+const gopkgExportFooter = `)
+`
+
+var (
+	pkglib = "github.com/qiniu/goplus/lib"
+)
+
+func exportPlugin(pkg *types.Package, root string) (string, error) {
+	var buf bytes.Buffer
+	pkgName, pkgPath := pkg.Name(), pkg.Path()
+	fmt.Fprintf(&buf, gopkgExportHeader, pkgName, pkgPath, pkgPath)
+	fmt.Fprintf(&buf, "\t_ %q\n", pkglib+"/"+pkgPath)
+	fmt.Fprintf(&buf, gopkgExportFooter)
+	fmt.Fprintf(&buf, "func main(){}\n")
+	data, err := format.Source(buf.Bytes())
+	if err != nil {
+		return "", err
+	}
+	dir := filepath.Join(root, "plugin", pkg.Path())
+	os.MkdirAll(dir, 0777)
+	err = ioutil.WriteFile(filepath.Join(dir, "gomod_export.go"), data, 0666)
+	if err != nil {
+		return "", err
+	}
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return "", err
+	}
+	pkgDir, _ := filepath.Split(pkgPath)
+	installDir := filepath.Join(home, ".goplus/lib", pkgDir)
+	os.MkdirAll(installDir, 0777)
+	gobin, err := exec.LookPath("go")
+	if err != nil {
+		return "", err
+	}
+	ofile := filepath.Join(installDir, pkgName+".dylib")
+	cmd := exec.Command(gobin, "build", "-v", "-buildmode", "plugin", "-o", ofile)
+	cmd.Dir = dir
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	err = cmd.Run()
+	if err != nil {
+		return "", err
+	}
+	return ofile, nil
 }
 
 func goplusRoot() (root string, err error) {
@@ -120,6 +197,48 @@ var (
 func hasFile(path string) bool {
 	fi, err := os.Stat(path)
 	return err == nil && fi.Mode().IsRegular()
+}
+
+func Home() (string, error) {
+	user, err := user.Current()
+	if nil == err {
+		return user.HomeDir, nil
+	}
+	if "windows" == runtime.GOOS {
+		return homeWindows()
+	}
+	// Unix-like system, so just assume Unix
+	return homeUnix()
+}
+
+func homeUnix() (string, error) {
+	if home := os.Getenv("HOME"); home != "" {
+		return home, nil
+	}
+	var stdout bytes.Buffer
+	cmd := exec.Command("sh", "-c", "eval echo ~$USER")
+	cmd.Stdout = &stdout
+	if err := cmd.Run(); err != nil {
+		return "", err
+	}
+	result := strings.TrimSpace(stdout.String())
+	if result == "" {
+		return "", errors.New("blank output when reading home directory")
+	}
+	return result, nil
+}
+
+func homeWindows() (string, error) {
+	drive := os.Getenv("HOMEDRIVE")
+	path := os.Getenv("HOMEPATH")
+	home := drive + path
+	if drive == "" || path == "" {
+		home = os.Getenv("USERPROFILE")
+	}
+	if home == "" {
+		return "", errors.New("HOMEDRIVE, HOMEPATH, and USERPROFILE are blank")
+	}
+	return home, nil
 }
 
 // -----------------------------------------------------------------------------
