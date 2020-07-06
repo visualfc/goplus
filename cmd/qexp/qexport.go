@@ -27,10 +27,7 @@ import (
 	"log"
 	"os"
 	"os/exec"
-	"os/user"
 	"path/filepath"
-	"runtime"
-	"strings"
 
 	"github.com/qiniu/goplus/cmd/qexp/gopkg"
 )
@@ -198,47 +195,3 @@ func hasFile(path string) bool {
 	fi, err := os.Stat(path)
 	return err == nil && fi.Mode().IsRegular()
 }
-
-func Home() (string, error) {
-	user, err := user.Current()
-	if nil == err {
-		return user.HomeDir, nil
-	}
-	if "windows" == runtime.GOOS {
-		return homeWindows()
-	}
-	// Unix-like system, so just assume Unix
-	return homeUnix()
-}
-
-func homeUnix() (string, error) {
-	if home := os.Getenv("HOME"); home != "" {
-		return home, nil
-	}
-	var stdout bytes.Buffer
-	cmd := exec.Command("sh", "-c", "eval echo ~$USER")
-	cmd.Stdout = &stdout
-	if err := cmd.Run(); err != nil {
-		return "", err
-	}
-	result := strings.TrimSpace(stdout.String())
-	if result == "" {
-		return "", errors.New("blank output when reading home directory")
-	}
-	return result, nil
-}
-
-func homeWindows() (string, error) {
-	drive := os.Getenv("HOMEDRIVE")
-	path := os.Getenv("HOMEPATH")
-	home := drive + path
-	if drive == "" || path == "" {
-		home = os.Getenv("USERPROFILE")
-	}
-	if home == "" {
-		return "", errors.New("HOMEDRIVE, HOMEPATH, and USERPROFILE are blank")
-	}
-	return home, nil
-}
-
-// -----------------------------------------------------------------------------
