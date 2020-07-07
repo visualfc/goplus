@@ -27,7 +27,6 @@ import (
 	"strings"
 
 	"github.com/qiniu/goplus/ast"
-	"github.com/qiniu/goplus/scanner"
 	"github.com/qiniu/goplus/token"
 )
 
@@ -170,39 +169,47 @@ func ParseFSFile(fset *token.FileSet, fs FileSystem, filename string, src interf
 // If do this, parsing will display error line number when error occur
 func parseFileEx(fset *token.FileSet, filename string, code []byte, mode Mode) (f *ast.File, err error) {
 	var b bytes.Buffer
-	var isMod, noEntrypoint bool
+	var isMod bool
 	var fsetTmp = token.NewFileSet()
-	f, err = parseFile(fsetTmp, filename, code, PackageClauseOnly)
+	f, _, err = parseFile(fsetTmp, filename, code, PackageClauseOnly)
 	if err != nil {
 		fmt.Fprintf(&b, "package main;%s", code)
 		code = b.Bytes()
 	} else {
 		isMod = f.Name.Name != "main"
 	}
-	_, err = parseFile(fsetTmp, filename, code, mode)
-	if err != nil {
-		if errlist, ok := err.(scanner.ErrorList); ok {
-			if e := errlist[0]; strings.HasPrefix(e.Msg, "expected declaration") {
-				idx := e.Pos.Offset
-				entrypoint := map[bool]string{
-					true:  "func init()",
-					false: "func main()",
-				}
-				b.Reset()
-				fmt.Fprintf(&b, "%s %s{%s}", code[:idx], entrypoint[isMod], code[idx:])
-				code = b.Bytes()
-				noEntrypoint = true
-				err = nil
+
+	var list []ast.Stmt
+	f, list, err = parseFile(fset, filename, code, mode)
+
+	var hasEntry bool
+	for _, decl := range f.Decls {
+		switch t := decl.(type) {
+		case *ast.FuncDecl:
+			if t.Name != nil && t.Name.Name == "init" || t.Name.Name == "main" {
+				hasEntry = true
 			}
 		}
 	}
-	if err == nil {
-		f, err = parseFile(fset, filename, code, mode)
-		if err == nil {
-			f.NoEntrypoint = noEntrypoint
-		}
+	if err != nil {
+		return nil, err
 	}
-	return
+	if !hasEntry {
+		var main string
+		if isMod {
+			main = "init"
+		} else {
+			main = "main"
+		}
+		declMain := &ast.FuncDecl{
+			Name: ast.NewIdent(main),
+			Type: &ast.FuncType{Params: &ast.FieldList{}},
+			Body: &ast.BlockStmt{List: list},
+		}
+		f.Decls = append(f.Decls, declMain)
+		f.NoEntrypoint = true
+	}
+	return f, nil
 }
 
 var (

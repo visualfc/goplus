@@ -62,10 +62,11 @@ type parser struct {
 	inRHS   bool // if set, the parser is parsing a rhs expression
 
 	// Ordinary identifier scopes
-	pkgScope   *ast.Scope        // pkgScope.Outer == nil
-	topScope   *ast.Scope        // top-most scope; may be pkgScope
-	unresolved []*ast.Ident      // unresolved identifiers
-	imports    []*ast.ImportSpec // list of imports
+	pkgScope    *ast.Scope // pkgScope.Outer == nil
+	topScope    *ast.Scope // top-most scope; may be pkgScope
+	topStmtList []ast.Stmt
+	unresolved  []*ast.Ident      // unresolved identifiers
+	imports     []*ast.ImportSpec // list of imports
 
 	// Label scopes
 	// (maintained by open/close LabelScope)
@@ -2701,6 +2702,37 @@ func (p *parser) parseFuncDecl() *ast.FuncDecl {
 	return decl
 }
 
+func (p *parser) parseTopScope(sync map[token.Token]bool, scope *ast.Scope) ast.Decl {
+	if p.trace {
+		defer un(trace(p, "Declaration"))
+	}
+
+	var f parseSpecFunction
+	switch p.tok {
+	case token.CONST, token.VAR:
+		f = p.parseValueSpec
+
+	case token.TYPE:
+		f = p.parseTypeSpec
+
+	case token.FUNC:
+		return p.parseFuncDecl()
+
+	default:
+		p.topScope = scope // open function scope
+		p.openLabelScope()
+		stmt := p.parseStmt()
+		p.closeLabelScope()
+		p.closeScope()
+		if stmt != nil {
+			p.topStmtList = append(p.topStmtList, stmt)
+		}
+		return nil
+	}
+
+	return p.parseGenDecl(p.tok, f)
+}
+
 func (p *parser) parseDecl(sync map[token.Token]bool) ast.Decl {
 	if p.trace {
 		defer un(trace(p, "Declaration"))
@@ -2730,7 +2762,7 @@ func (p *parser) parseDecl(sync map[token.Token]bool) ast.Decl {
 // ----------------------------------------------------------------------------
 // Source files
 
-func (p *parser) parseFile() *ast.File {
+func (p *parser) parseFile() (*ast.File, []ast.Stmt) {
 	if p.trace {
 		defer un(trace(p, "File"))
 	}
@@ -2738,7 +2770,7 @@ func (p *parser) parseFile() *ast.File {
 	// Don't bother parsing the rest if we had errors scanning the first token.
 	// Likely not a Go source file at all.
 	if p.errors.Len() != 0 {
-		return nil
+		return nil, nil
 	}
 
 	// package clause
@@ -2755,7 +2787,7 @@ func (p *parser) parseFile() *ast.File {
 	// Don't bother parsing the rest if we had errors parsing the package clause.
 	// Likely not a Go source file at all.
 	if p.errors.Len() != 0 {
-		return nil
+		return nil, nil
 	}
 
 	p.openScope()
@@ -2768,9 +2800,13 @@ func (p *parser) parseFile() *ast.File {
 		}
 
 		if p.mode&ImportsOnly == 0 {
+			scope := ast.NewScope(p.topScope)
 			// rest of package body
 			for p.tok != token.EOF {
-				decls = append(decls, p.parseDecl(declStart))
+				decl := p.parseTopScope(declStart, scope)
+				if decl != nil {
+					decls = append(decls, decl)
+				}
 			}
 		}
 	}
@@ -2799,5 +2835,5 @@ func (p *parser) parseFile() *ast.File {
 		Imports:    p.imports,
 		Unresolved: p.unresolved[0:i],
 		Comments:   p.comments,
-	}
+	}, p.topStmtList
 }

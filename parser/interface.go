@@ -51,7 +51,7 @@ const (
 // representing the fragments of erroneous source code). Multiple errors
 // are returned via a scanner.ErrorList which is sorted by source position.
 //
-func parseFile(fset *token.FileSet, filename string, src interface{}, mode Mode) (f *ast.File, err error) {
+func parseFile(fset *token.FileSet, filename string, src interface{}, mode Mode) (f *ast.File, stmtList []ast.Stmt, err error) {
 	if fset == nil {
 		panic("parser.ParseFile: no token.FileSet provided (fset == nil)")
 	}
@@ -59,7 +59,7 @@ func parseFile(fset *token.FileSet, filename string, src interface{}, mode Mode)
 	// get source
 	text, err := readSource(src)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	var p parser
@@ -89,7 +89,7 @@ func parseFile(fset *token.FileSet, filename string, src interface{}, mode Mode)
 
 	// parse source
 	p.init(fset, filename, text, mode)
-	f = p.parseFile()
+	f, stmtList = p.parseFile()
 
 	return
 }
