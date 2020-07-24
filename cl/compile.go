@@ -21,8 +21,11 @@ package cl
 import (
 	"errors"
 	"fmt"
+	"os"
 	"path"
 	"reflect"
+	"sort"
+	"strings"
 	"syscall"
 
 	"github.com/goplus/gop/ast"
@@ -90,6 +93,107 @@ func logNonIntegerIdxPanic(ctx *blockCtx, v ast.Node, kind reflect.Kind) {
 
 func logIllTypeMapIndexPanic(ctx *blockCtx, v ast.Node, t, typIdx reflect.Type) {
 	logPanic(ctx, v, `cannot use %v (type %v) as type %v in map index`, ctx.code(v), t, typIdx)
+}
+
+var lasterror struct {
+	syntax token.Pos // source position of last syntax error
+	other  token.Pos // source position of last non-syntax error
+	msg    string    // error message of last non-syntax error
+}
+
+var (
+	nsyntaxerrors int
+	nsavederrors  int
+	nerrors       int
+)
+
+func saveerrors() {
+	nsavederrors += nerrors
+	nerrors = 0
+}
+
+// sameline reports whether two positions a, b are on the same line.
+func sameline(fset *token.FileSet, a, b token.Pos) bool {
+	p := fset.Position(a)
+	q := fset.Position(b)
+	return p.Filename == q.Filename && p.Line == q.Line
+}
+
+func yyerror(ctx *blockCtx, node ast.Node, format string, args ...interface{}) {
+	yyerrorl(ctx.fset, node.Pos(), format, args)
+}
+
+func yyerrorl(fset *token.FileSet, pos token.Pos, format string, args ...interface{}) {
+	msg := fmt.Sprintf(format, args...)
+
+	if strings.HasPrefix(msg, "syntax error") {
+		nsyntaxerrors++
+		// only one syntax error per line, no matter what error
+		if sameline(fset, lasterror.syntax, pos) {
+			return
+		}
+		lasterror.syntax = pos
+	} else {
+		// only one of multiple equal non-syntax errors per line
+		// (flusherrors shows only one of them, so we filter them
+		// here as best as we can (they may not appear in order)
+		// so that we don't count them here and exit early, and
+		// then have nothing to show for.)
+		if sameline(fset, lasterror.other, pos) && lasterror.msg == msg {
+			return
+		}
+		lasterror.other = pos
+		lasterror.msg = msg
+	}
+
+	adderr(fset, pos, msg)
+
+	nerrors++
+	if nsavederrors+nerrors >= 10 {
+		flusherrors()
+		fmt.Printf("%v: too many errors\n", fset.Position(pos))
+		errorexit()
+	}
+}
+
+func adderr(fset *token.FileSet, pos token.Pos, msg string) {
+	yyerrors = append(yyerrors, Error{
+		pos: pos,
+		msg: fmt.Sprintf("%v: %s\n", fset.Position(pos), msg),
+	})
+}
+
+type Error struct {
+	pos token.Pos
+	msg string
+}
+
+type byPos []Error
+
+func (x byPos) Len() int           { return len(x) }
+func (x byPos) Less(i, j int) bool { return x[i].pos < x[j].pos }
+func (x byPos) Swap(i, j int)      { x[i], x[j] = x[j], x[i] }
+
+var (
+	yyerrors []Error
+)
+
+func flusherrors() {
+	if len(yyerrors) == 0 {
+		return
+	}
+	sort.Stable(byPos(yyerrors))
+	for i, err := range yyerrors {
+		if i == 0 || err.msg != yyerrors[i-1].msg {
+			fmt.Printf("%s", err.msg)
+		}
+	}
+	yyerrors = yyerrors[:0]
+}
+
+func errorexit() {
+	flusherrors()
+	os.Exit(2)
 }
 
 // -----------------------------------------------------------------------------
