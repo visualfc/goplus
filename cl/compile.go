@@ -120,7 +120,7 @@ func sameline(fset *token.FileSet, a, b token.Pos) bool {
 }
 
 func yyerror(ctx *blockCtx, node ast.Node, format string, args ...interface{}) {
-	yyerrorl(ctx.fset, node.Pos(), format, args)
+	yyerrorl(ctx.fset, node.Pos(), format, args...)
 }
 
 func yyerrorl(fset *token.FileSet, pos token.Pos, format string, args ...interface{}) {
@@ -257,6 +257,11 @@ const (
 
 // NewPackage creates a Go+ package instance.
 func NewPackage(out exec.Builder, pkg *ast.Package, fset *token.FileSet, act PkgAct) (p *Package, err error) {
+	defer func() {
+		if nsavederrors+nerrors > 0 {
+			flusherrors()
+		}
+	}()
 	if pkg == nil {
 		return nil, ErrNotFound
 	}

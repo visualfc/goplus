@@ -45,7 +45,7 @@ func compileExprLHS(ctx *blockCtx, expr ast.Expr, mode compleMode) {
 	ctx.inLHS = true
 	switch v := expr.(type) {
 	case *ast.Ident:
-		compileIdentLHS(ctx, v.Name, mode)
+		compileIdentLHS(ctx, v, mode)
 	case *ast.IndexExpr:
 		compileIndexExprLHS(ctx, v, mode)
 	case *ast.SelectorExpr:
@@ -100,7 +100,8 @@ func compileExpr(ctx *blockCtx, expr ast.Expr) func() {
 	}
 }
 
-func compileIdentLHS(ctx *blockCtx, name string, mode compleMode) {
+func compileIdentLHS(ctx *blockCtx, ident *ast.Ident, mode compleMode) {
+	name := ident.Name
 	in := ctx.infer.Get(-1)
 	addr, err := ctx.findVar(name)
 	if err == nil {
@@ -108,6 +109,7 @@ func compileIdentLHS(ctx *blockCtx, name string, mode compleMode) {
 			log.Warn("requireVar: variable is shadowed -", name)
 		}
 	} else if mode == lhsAssign || err != syscall.ENOENT {
+		yyerror(ctx, ident, "undefined: %v", name)
 		log.Panicln("compileIdentLHS failed:", err, "-", name)
 	} else {
 		typ := boundType(in.(iValue))
