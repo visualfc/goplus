@@ -196,6 +196,14 @@ func errorexit() {
 	os.Exit(2)
 }
 
+func logpanicf(format string, args ...interface{}) {
+	panic(fmt.Sprintf(format, args...))
+}
+
+func logpanicln(v ...interface{}) {
+	panic(fmt.Sprintln(v...))
+}
+
 // -----------------------------------------------------------------------------
 
 // - varName => *exec.Var

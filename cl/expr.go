@@ -110,7 +110,7 @@ func compileIdentLHS(ctx *blockCtx, ident *ast.Ident, mode compleMode) {
 		}
 	} else if mode == lhsAssign || err != syscall.ENOENT {
 		yyerror(ctx, ident, "undefined: %v", name)
-		log.Panicln("compileIdentLHS failed:", err, "-", name)
+		logpanicln("compileIdentLHS failed:", err, "-", name)
 	} else {
 		typ := boundType(in.(iValue))
 		addr = ctx.insertVar(name, typ)
