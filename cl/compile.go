@@ -84,7 +84,7 @@ func logError(ctx *blockCtx, at ast.Node, format string, params ...interface{}) 
 
 func logPanic(ctx *blockCtx, at ast.Node, format string, params ...interface{}) {
 	err := newError(at, format, params...)
-	log.Panicln(err)
+	logpanicln(err)
 }
 
 func logNonIntegerIdxPanic(ctx *blockCtx, v ast.Node, kind reflect.Kind) {
@@ -94,6 +94,8 @@ func logNonIntegerIdxPanic(ctx *blockCtx, v ast.Node, kind reflect.Kind) {
 func logIllTypeMapIndexPanic(ctx *blockCtx, v ast.Node, t, typIdx reflect.Type) {
 	logPanic(ctx, v, `cannot use %v (type %v) as type %v in map index`, ctx.code(v), t, typIdx)
 }
+
+// -----------------------------------------------------------------------------
 
 var lasterror struct {
 	syntax token.Pos // source position of last syntax error
@@ -196,11 +198,35 @@ func errorexit() {
 	os.Exit(2)
 }
 
+type ComplilePanicMode int
+
+const (
+	TracePanic ComplilePanicMode = iota
+	ExitOnPanic
+	SkipOnPanic
+)
+
+var (
+	PanicMode ComplilePanicMode
+)
+
 func logpanicf(format string, args ...interface{}) {
+	switch PanicMode {
+	case ExitOnPanic:
+		errorexit()
+	case SkipOnPanic:
+		return
+	}
 	panic(fmt.Sprintf(format, args...))
 }
 
 func logpanicln(v ...interface{}) {
+	switch PanicMode {
+	case ExitOnPanic:
+		errorexit()
+	case SkipOnPanic:
+		return
+	}
 	panic(fmt.Sprintln(v...))
 }
 
@@ -274,7 +300,7 @@ func NewPackage(out exec.Builder, pkg *ast.Package, fset *token.FileSet, act Pkg
 		return nil, ErrNotFound
 	}
 	if CallBuiltinOp == nil {
-		log.Panicln("NewPackage failed: variable CallBuiltinOp is uninitialized")
+		logpanicln("NewPackage failed: variable CallBuiltinOp is uninitialized")
 	}
 	p = &Package{}
 	ctxPkg := newPkgCtx(out, pkg, fset)
@@ -346,7 +372,7 @@ func (p *Package) Find(name string) (kind SymKind, v interface{}, ok bool) {
 	case *typeDecl:
 		kind = SymType
 	default:
-		log.Panicln("Package.Find: unknown symbol type -", reflect.TypeOf(v))
+		logpanicln("Package.Find: unknown symbol type -", reflect.TypeOf(v))
 	}
 	return
 }
@@ -370,10 +396,10 @@ func loadFile(ctx *blockCtx, f *ast.File) {
 			case token.VAR:
 				loadVars(ctx, d)
 			default:
-				log.Panicln("tok:", d.Tok, "spec:", reflect.TypeOf(d.Specs).Elem())
+				logpanicln("tok:", d.Tok, "spec:", reflect.TypeOf(d.Specs).Elem())
 			}
 		default:
-			log.Panicln("gopkg.Package.load: unknown decl -", reflect.TypeOf(decl))
+			logpanicln("gopkg.Package.load: unknown decl -", reflect.TypeOf(decl))
 		}
 	}
 }
@@ -432,7 +458,7 @@ func loadFunc(ctx *blockCtx, d *ast.FuncDecl, isUnnamed bool) {
 			file:    ctx.file,
 		})
 	} else if name == "init" {
-		log.Panicln("loadFunc TODO: init")
+		logpanicln("loadFunc TODO: init")
 	} else {
 		funCtx := newExecBlockCtx(ctx)
 		funCtx.noExecCtx = isUnnamed

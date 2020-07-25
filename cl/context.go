@@ -58,7 +58,7 @@ func (p *pkgCtx) getCodeInfo(v ast.Node) (token.Position, string) {
 	if f, ok := p.pkg.Files[pos.Filename]; ok {
 		return pos, string(f.Code[pos.Offset : pos.Offset+int(end-start)])
 	}
-	log.Panicln("pkgCtx.getCodeInfo failed: file not found -", pos.Filename)
+	logpanicln("pkgCtx.getCodeInfo failed: file not found -", pos.Filename)
 	return pos, ""
 }
 
@@ -343,7 +343,7 @@ func (p *blockCtx) insertFuncVars(in []reflect.Type, args []string, rets []exec.
 				continue
 			}
 			if p.exists(name) {
-				log.Panicln("insertStkVars failed: symbol exists -", name)
+				logpanicln("insertStkVars failed: symbol exists -", name)
 			}
 			p.syms[name] = &stackVar{index: int32(i - n), typ: in[i]}
 		}
@@ -358,7 +358,7 @@ func (p *blockCtx) insertFuncVars(in []reflect.Type, args []string, rets []exec.
 
 func (p *blockCtx) insertVar(name string, typ reflect.Type, inferOnly ...bool) *execVar {
 	if p.exists(name) {
-		log.Panicln("insertVar failed: symbol exists -", name)
+		logpanicln("insertVar failed: symbol exists -", name)
 	}
 	v := p.NewVar(typ, name)
 	if inferOnly == nil {
@@ -371,29 +371,29 @@ func (p *blockCtx) insertVar(name string, typ reflect.Type, inferOnly ...bool) *
 
 func (p *blockCtx) insertFunc(name string, fun *funcDecl) {
 	if p.exists(name) {
-		log.Panicln("insertFunc failed: symbol exists -", name)
+		logpanicln("insertFunc failed: symbol exists -", name)
 	}
 	p.syms[name] = fun
 }
 
 func (p *blockCtx) insertMethod(typeName, methodName string, method *methodDecl) {
 	if p.parent != nil {
-		log.Panicln("insertMethod failed: unexpected - non global method declaration?")
+		logpanicln("insertMethod failed: unexpected - non global method declaration?")
 	}
 	typ, err := p.findType(typeName)
 	if err == ErrNotFound {
 		typ = new(typeDecl)
 		p.syms[typeName] = typ
 	} else if err != nil {
-		log.Panicln("insertMethod failed:", err)
+		logpanicln("insertMethod failed:", err)
 	} else if typ.Alias {
-		log.Panicln("insertMethod failed: alias?")
+		logpanicln("insertMethod failed: alias?")
 	}
 	if typ.Methods == nil {
 		typ.Methods = map[string]*methodDecl{methodName: method}
 	} else {
 		if _, ok := typ.Methods[methodName]; ok {
-			log.Panicln("insertMethod failed: method exists -", typeName, methodName)
+			logpanicln("insertMethod failed: method exists -", typeName, methodName)
 		}
 		typ.Methods[methodName] = method
 	}

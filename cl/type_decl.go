@@ -22,7 +22,6 @@ import (
 
 	"github.com/goplus/gop/ast"
 	"github.com/goplus/gop/exec.spec"
-	"github.com/qiniu/x/log"
 )
 
 type iType interface {
@@ -54,7 +53,7 @@ func toTypeEx(ctx *blockCtx, typ ast.Expr) (t iType, variadic bool) {
 		elem := toType(ctx, v.Elt)
 		return reflect.SliceOf(elem.(reflect.Type)), true
 	}
-	log.Panicln("toType: unknown -", reflect.TypeOf(typ))
+	logpanicln("toType: unknown -", reflect.TypeOf(typ))
 	return nil, false
 }
 
@@ -85,7 +84,7 @@ func toType(ctx *blockCtx, typ ast.Expr) iType {
 	case *ast.Ellipsis:
 		return nil
 	}
-	log.Panicln("toType: unknown -", reflect.TypeOf(typ))
+	logpanicln("toType: unknown -", reflect.TypeOf(typ))
 	return nil
 }
 
@@ -128,7 +127,7 @@ func toTypes(ctx *blockCtx, fields *ast.FieldList) (types []reflect.Type) {
 		}
 		typ := toType(ctx, field.Type)
 		if typ == nil {
-			log.Panicln("toType: unknown -", reflect.TypeOf(field.Type))
+			logpanicln("toType: unknown -", reflect.TypeOf(field.Type))
 		}
 		for i := 0; i < n; i++ {
 			types = append(types, typ.(reflect.Type))
@@ -152,7 +151,7 @@ func toTypesEx(ctx *blockCtx, fields *ast.FieldList) ([]reflect.Type, bool) {
 		}
 		if variadic {
 			if i != last {
-				log.Panicln("toTypes failed: the variadic type isn't last argument?")
+				logpanicln("toTypes failed: the variadic type isn't last argument?")
 			}
 			return types, true
 		}
@@ -169,7 +168,7 @@ func toReturnTypes(ctx *blockCtx, fields *ast.FieldList) (vars []exec.Var) {
 		n := len(field.Names)
 		typ := toType(ctx, field.Type)
 		if typ == nil {
-			log.Panicln("toType: unknown -", reflect.TypeOf(field.Type))
+			logpanicln("toType: unknown -", reflect.TypeOf(field.Type))
 		}
 		if n == 0 {
 			index++
@@ -205,7 +204,7 @@ func toArgTypes(ctx *blockCtx, fields *ast.FieldList) ([]reflect.Type, []string,
 		}
 		if variadic {
 			if i != last {
-				log.Panicln("toTypes failed: the variadic type isn't last argument?")
+				logpanicln("toTypes failed: the variadic type isn't last argument?")
 			}
 			return types, names, true
 		}
@@ -233,7 +232,7 @@ func toIdentType(ctx *blockCtx, ident string) iType {
 	if typ, ok := ctx.builtin.FindType(ident); ok {
 		return typ
 	}
-	log.Panicln("toIdentType failed: unknown ident -", ident)
+	logpanicln("toIdentType failed: unknown ident -", ident)
 	return nil
 }
 
@@ -252,7 +251,7 @@ func toArrayType(ctx *blockCtx, v *ast.ArrayType) iType {
 			return reflect.ArrayOf(int(iv), elem.(reflect.Type))
 		}
 	}
-	log.Panicln("toArrayType failed: unknown -", reflect.TypeOf(n))
+	logpanicln("toArrayType failed: unknown -", reflect.TypeOf(n))
 	return nil
 }
 
@@ -272,11 +271,11 @@ func toInt(ctx *blockCtx, e ast.Expr) int {
 	compileExpr(ctx, e)
 	nv, ok := ctx.infer.Pop().(*constVal)
 	if !ok {
-		log.Panicln("toInt: require constant expr.")
+		logpanicln("toInt: require constant expr.")
 	}
 	iv, ok := nv.v.(int64)
 	if !ok {
-		log.Panicln("toInt: constant expr isn't an integer.")
+		logpanicln("toInt: constant expr isn't an integer.")
 	}
 	return int(iv)
 }

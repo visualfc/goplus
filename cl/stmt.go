@@ -76,7 +76,7 @@ func compileStmt(ctx *blockCtx, stmt ast.Stmt) {
 	case *ast.EmptyStmt:
 		// do nothing
 	default:
-		log.Panicln("compileStmt failed: unknown -", reflect.TypeOf(v))
+		logpanicln("compileStmt failed: unknown -", reflect.TypeOf(v))
 	}
 	ctx.out.EndStmt(stmt, start)
 }
@@ -182,10 +182,10 @@ func compileForStmt(ctx *blockCtx, v *ast.ForStmt) {
 func compileBranchStmt(ctx *blockCtx, v *ast.BranchStmt) {
 	switch v.Tok {
 	case token.FALLTHROUGH:
-		log.Panicln("fallthrough statement out of place")
+		logpanicln("fallthrough statement out of place")
 	case token.GOTO:
 		if v.Label == nil {
-			log.Panicln("label not defined")
+			logpanicln("label not defined")
 		}
 		ctx.out.Jmp(ctx.requireLabel(v.Label.Name))
 	case token.BREAK:
@@ -202,7 +202,7 @@ func compileBranchStmt(ctx *blockCtx, v *ast.BranchStmt) {
 			ctx.out.Return(exec.BreakAsReturn)
 			return
 		}
-		log.Panicln("break statement out of for/switch/select statements")
+		logpanicln("break statement out of for/switch/select statements")
 	case token.CONTINUE:
 		var labelName string
 		if v.Label != nil {
@@ -217,7 +217,7 @@ func compileBranchStmt(ctx *blockCtx, v *ast.BranchStmt) {
 			ctx.out.Return(exec.ContinueAsReturn)
 			return
 		}
-		log.Panicln("continue statement out of for statements")
+		logpanicln("continue statement out of for statements")
 	}
 }
 
@@ -283,7 +283,7 @@ func compileDeferStmt(ctx *blockCtx, v *ast.DeferStmt) {
 		}
 	case *goValue:
 		if vfn.t.Kind() != reflect.Func {
-			log.Panicln("compileCallExpr failed: call a non function.")
+			logpanicln("compileCallExpr failed: call a non function.")
 		}
 		ret := newFuncResults(vfn.t)
 		ctx.infer.Push(ret)
@@ -351,7 +351,7 @@ func compileSwitchStmt(ctx *blockCtx, v *ast.SwitchStmt) {
 		for idx, item := range v.Body.List {
 			c, ok := item.(*ast.CaseClause)
 			if !ok {
-				log.Panicln("compile SwitchStmt failed: case clause expected.")
+				logpanicln("compile SwitchStmt failed: case clause expected.")
 			}
 			if c.List == nil { // default
 				defaultBody = c.Body
@@ -378,7 +378,7 @@ func compileSwitchStmt(ctx *blockCtx, v *ast.SwitchStmt) {
 		for idx, item := range v.Body.List {
 			c, ok := item.(*ast.CaseClause)
 			if !ok {
-				log.Panicln("compile SwitchStmt failed: case clause expected.")
+				logpanicln("compile SwitchStmt failed: case clause expected.")
 			}
 			if c.List == nil { // default
 				defaultBody = c.Body
@@ -489,12 +489,12 @@ func compileReturnStmt(ctx *blockCtx, expr *ast.ReturnStmt) {
 			ctx.out.Return(0)
 			return
 		}
-		log.Panicln("compileReturnStmt failed: return statement not in a function.")
+		logpanicln("compileReturnStmt failed: return statement not in a function.")
 	}
 	rets := expr.Results
 	if rets == nil {
 		if fun.IsUnnamedOut() {
-			log.Panicln("compileReturnStmt failed: return without values -", fun.Name())
+			logpanicln("compileReturnStmt failed: return without values -", fun.Name())
 		}
 		ctx.out.Return(-1)
 		return
@@ -504,10 +504,10 @@ func compileReturnStmt(ctx *blockCtx, expr *ast.ReturnStmt) {
 	}
 	n := len(rets)
 	if fun.NumOut() != n {
-		log.Panicln("compileReturnStmt failed: mismatched count of return values -", fun.Name())
+		logpanicln("compileReturnStmt failed: mismatched count of return values -", fun.Name())
 	}
 	if ctx.infer.Len() != n {
-		log.Panicln("compileReturnStmt failed: can't use multi values funcation result as return values -", fun.Name())
+		logpanicln("compileReturnStmt failed: can't use multi values funcation result as return values -", fun.Name())
 	}
 	results := ctx.infer.GetArgs(n)
 	for i, result := range results {
@@ -530,7 +530,7 @@ func compileIncDecStmt(ctx *blockCtx, expr *ast.IncDecStmt) {
 
 func compileAssignStmt(ctx *blockCtx, expr *ast.AssignStmt) {
 	if ctx.infer.Len() != 0 {
-		log.Panicln("compileAssignStmt internal error: infer stack is not empty.")
+		logpanicln("compileAssignStmt internal error: infer stack is not empty.")
 	}
 	if len(expr.Rhs) == 1 {
 		compileExpr(ctx, expr.Rhs[0])()
@@ -538,7 +538,7 @@ func compileAssignStmt(ctx *blockCtx, expr *ast.AssignStmt) {
 		n := v.NumValues()
 		if n != 1 {
 			if n == 0 {
-				log.Panicln("compileAssignStmt failed: expr has no return value.")
+				logpanicln("compileAssignStmt failed: expr has no return value.")
 			}
 			rhs := make([]interface{}, n)
 			for i := 0; i < n; i++ {
@@ -550,12 +550,12 @@ func compileAssignStmt(ctx *blockCtx, expr *ast.AssignStmt) {
 		for _, item := range expr.Rhs {
 			compileExpr(ctx, item)()
 			if ctx.infer.Get(-1).(iValue).NumValues() != 1 {
-				log.Panicln("compileAssignStmt failed: expr has multiple values.")
+				logpanicln("compileAssignStmt failed: expr has multiple values.")
 			}
 		}
 	}
 	if ctx.infer.Len() != len(expr.Lhs) {
-		log.Panicln("compileAssignStmt: assign statement has mismatched variables count -", ctx.infer.Len())
+		logpanicln("compileAssignStmt: assign statement has mismatched variables count -", ctx.infer.Len())
 	}
 	for i := len(expr.Lhs) - 1; i >= 0; i-- {
 		compileExprLHS(ctx, expr.Lhs[i], expr.Tok)

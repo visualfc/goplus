@@ -51,7 +51,7 @@ func compileExprLHS(ctx *blockCtx, expr ast.Expr, mode compleMode) {
 	case *ast.SelectorExpr:
 		compileSelectorExprLHS(ctx, v, mode)
 	default:
-		log.Panicln("compileExpr failed: unknown -", reflect.TypeOf(v))
+		logpanicln("compileExpr failed: unknown -", reflect.TypeOf(v))
 	}
 	ctx.inLHS = false
 }
@@ -59,7 +59,7 @@ func compileExprLHS(ctx *blockCtx, expr ast.Expr, mode compleMode) {
 func compileExpr(ctx *blockCtx, expr ast.Expr) func() {
 	switch v := expr.(type) {
 	case *ast.Ident:
-		return compileIdent(ctx, v.Name)
+		return compileIdent(ctx, v)
 	case *ast.BasicLit:
 		return compileBasicLit(ctx, v)
 	case *ast.CallExpr:
@@ -95,7 +95,7 @@ func compileExpr(ctx *blockCtx, expr ast.Expr) func() {
 	case *ast.KeyValueExpr:
 		panic("compileExpr: ast.KeyValueExpr unexpected")
 	default:
-		log.Panicln("compileExpr failed: unknown -", reflect.TypeOf(v))
+		logpanicln("compileExpr failed: unknown -", reflect.TypeOf(v))
 		return nil
 	}
 }
@@ -123,7 +123,7 @@ func compileIdentLHS(ctx *blockCtx, ident *ast.Ident, mode compleMode) {
 		} else if op, ok := addrops[mode]; ok {
 			ctx.out.AddrVar(v.v).AddrOp(kindOf(v.v.Type()), op)
 		} else {
-			log.Panicln("compileIdentLHS failed: unknown op -", mode)
+			logpanicln("compileIdentLHS failed: unknown op -", mode)
 		}
 	} else {
 		if mode == token.ASSIGN || mode == token.DEFINE {
@@ -151,7 +151,8 @@ var addrops = map[token.Token]exec.AddrOperator{
 	token.DEC:            exec.OpDec,
 }
 
-func compileIdent(ctx *blockCtx, name string) func() {
+func compileIdent(ctx *blockCtx, ident *ast.Ident) func() {
+	name := ident.Name
 	if sym, ok := ctx.find(name); ok {
 		switch v := sym.(type) {
 		case *execVar:
@@ -171,7 +172,7 @@ func compileIdent(ctx *blockCtx, name string) func() {
 		case string: // pkgPath
 			pkg := ctx.FindGoPackage(v)
 			if pkg == nil {
-				log.Panicln("compileIdent failed: package not found -", v)
+				logpanicln("compileIdent failed: package not found -", v)
 			}
 			ctx.infer.Push(&nonValue{pkg})
 			return nil
@@ -183,7 +184,7 @@ func compileIdent(ctx *blockCtx, name string) func() {
 				ctx.out.GoClosure(fn.fi)
 			}
 		default:
-			log.Panicln("compileIdent failed: unknown -", reflect.TypeOf(sym))
+			logpanicln("compileIdent failed: unknown -", reflect.TypeOf(sym))
 		}
 	} else {
 		if addr, kind, ok := ctx.builtin.Find(name); ok {
@@ -193,10 +194,10 @@ func compileIdent(ctx *blockCtx, name string) func() {
 				fn := newGoFunc(addr, kind, 0, ctx)
 				ctx.infer.Push(fn)
 				return func() {
-					log.Panicln("compileIdent todo: goFunc")
+					logpanicln("compileIdent todo: goFunc")
 				}
 			}
-			log.Panicln("compileIdent todo: var -", kind, addr)
+			logpanicln("compileIdent todo: var -", kind, addr)
 		}
 		if typ, ok := ctx.builtin.FindType(name); ok {
 			ctx.infer.Push(&nonValue{typ})
@@ -209,7 +210,8 @@ func compileIdent(ctx *blockCtx, name string) func() {
 			ctx.infer.Push(&nonValue{gi.instr})
 			return nil
 		}
-		log.Panicln("compileIdent failed: unknown -", name)
+		yyerror(ctx, ident, "undefined: %v", name)
+		logpanicln("compileIdent failed: unknown -", name)
 	}
 	return nil
 }
@@ -222,7 +224,7 @@ func compileArrayType(ctx *blockCtx, v *ast.ArrayType) func() {
 
 func compileEllipsis(ctx *blockCtx, v *ast.Ellipsis) func() {
 	if v.Elt != nil {
-		log.Panicln("compileEllipsis: todo")
+		logpanicln("compileEllipsis: todo")
 	}
 	ctx.infer.Push(&constVal{v: int64(-1), kind: astutil.ConstUnboundInt})
 	return nil
@@ -293,13 +295,13 @@ func compileCompositeLit(ctx *blockCtx, v *ast.CompositeLit) func() {
 					compileExpr(ctx, e.Value)()
 					checkType(typVal, ctx.infer.Pop(), ctx.out)
 				default:
-					log.Panicln("compileCompositeLit: map requires key-value expr.")
+					logpanicln("compileCompositeLit: map requires key-value expr.")
 				}
 			}
 			ctx.out.MakeMap(typMap, len(v.Elts))
 		}
 	default:
-		log.Panicln("compileCompositeLit failed: unknown -", reflect.TypeOf(typ))
+		logpanicln("compileCompositeLit failed: unknown -", reflect.TypeOf(typ))
 		return nil
 	}
 }
@@ -349,7 +351,7 @@ func compileForPhrase(parent *blockCtx, f ast.ForPhrase, noExecCtx bool) (*block
 		case reflect.Map:
 			typKey = typData.Key()
 		default:
-			log.Panicln("compileListComprehensionExpr: require slice, array or map")
+			logpanicln("compileListComprehensionExpr: require slice, array or map")
 		}
 		varKey = ctx.insertVar(f.Key.Name, typKey, true).v
 	}
@@ -447,12 +449,12 @@ func compileMapLit(ctx *blockCtx, v *ast.CompositeLit) func() {
 			fnElts[(i<<1)+1] = compileExpr(ctx, e.Value)
 			elts[(i<<1)+1] = ctx.infer.Get(-1)
 		default:
-			log.Panicln("compileMapLit: map requires key-value expr.")
+			logpanicln("compileMapLit: map requires key-value expr.")
 		}
 	}
 	typKey := boundElementType(elts, 0, n, 2)
 	if typKey == nil {
-		log.Panicln("compileMapLit: mismatched key type.")
+		logpanicln("compileMapLit: mismatched key type.")
 	}
 	typVal := boundElementType(elts, 1, n, 2)
 	if typVal == nil {
@@ -532,11 +534,11 @@ func compileUnaryExpr(ctx *blockCtx, v *ast.UnaryExpr) func() {
 func unaryOpResult(op exec.Operator, x interface{}) (exec.Kind, iValue) {
 	vx := x.(iValue)
 	if vx.NumValues() != 1 {
-		log.Panicln("unaryOp: argument isn't an expr.")
+		logpanicln("unaryOp: argument isn't an expr.")
 	}
 	kind := vx.Kind()
 	if !isConstBound(kind) {
-		log.Panicln("unaryOp: expect x aren't const values.")
+		logpanicln("unaryOp: expect x aren't const values.")
 	}
 	i := op.GetInfo()
 	kindRet := kind
@@ -581,13 +583,13 @@ func binaryOpResult(op exec.Operator, x, y interface{}) (exec.Kind, iValue) {
 	vx := x.(iValue)
 	vy := y.(iValue)
 	if vx.NumValues() != 1 || vy.NumValues() != 1 {
-		log.Panicln("binaryOp: argument isn't an expr.")
+		logpanicln("binaryOp: argument isn't an expr.")
 	}
 	kind := vx.Kind()
 	if !isConstBound(kind) {
 		kind = vy.Kind()
 		if !isConstBound(kind) {
-			log.Panicln("binaryOp: expect x, y aren't const values either.")
+			logpanicln("binaryOp: expect x, y aren't const values either.")
 		}
 	}
 	i := op.GetInfo()
@@ -670,7 +672,7 @@ func compileCallExprCall(ctx *blockCtx, exprFun func(), v *ast.CallExpr) func() 
 		}
 	case *goValue:
 		if vfn.t.Kind() != reflect.Func {
-			log.Panicln("compileCallExpr failed: call a non function.")
+			logpanicln("compileCallExpr failed: call a non function.")
 		}
 		ret := newFuncResults(vfn.t)
 		ctx.infer.Push(ret)
@@ -693,13 +695,13 @@ func compileCallExprCall(ctx *blockCtx, exprFun func(), v *ast.CallExpr) func() 
 			return compileTypeCast(nv, ctx, v)
 		}
 	}
-	log.Panicln("compileCallExpr failed: unknown -", reflect.TypeOf(fn))
+	logpanicln("compileCallExpr failed: unknown -", reflect.TypeOf(fn))
 	return nil
 }
 
 func compileIndexExprLHS(ctx *blockCtx, v *ast.IndexExpr, mode compleMode) {
 	if mode == lhsDefine {
-		log.Panicln("compileIndexExprLHS: `:=` can't be used for index expression")
+		logpanicln("compileIndexExprLHS: `:=` can't be used for index expression")
 	}
 	val := ctx.infer.Get(-1)
 	compileExpr(ctx, v.X)()
@@ -732,7 +734,7 @@ func compileIndexExprLHS(ctx *blockCtx, v *ast.IndexExpr, mode compleMode) {
 			if typIdx.ConvertibleTo(exec.TyInt) {
 				ctx.out.TypeCast(typIdx, exec.TyInt)
 			} else {
-				log.Panicln("compileIndexExprLHS: index expression value type is invalid")
+				logpanicln("compileIndexExprLHS: index expression value type is invalid")
 			}
 		}
 		ctx.out.SetIndex(-1)
@@ -747,7 +749,7 @@ func compileIndexExprLHS(ctx *blockCtx, v *ast.IndexExpr, mode compleMode) {
 		}
 		ctx.out.SetMapIndex()
 	default:
-		log.Panicln("compileIndexExprLHS: unknown -", typ)
+		logpanicln("compileIndexExprLHS: unknown -", typ)
 	}
 }
 
@@ -843,7 +845,7 @@ func compileIndexExpr(ctx *blockCtx, v *ast.IndexExpr) func() { // x[i]
 			}
 			ctx.out.MapIndex()
 		default:
-			log.Panicln("compileIndexExpr: unknown -", typ)
+			logpanicln("compileIndexExpr: unknown -", typ)
 		}
 	}
 }
@@ -853,7 +855,7 @@ func compileErrWrapExpr(ctx *blockCtx, v *ast.ErrWrapExpr) func() {
 	x := ctx.infer.Get(-1).(iValue)
 	nx := x.NumValues()
 	if nx < 1 || !x.Value(nx-1).Type().Implements(exec.TyError) {
-		log.Panicln("last output parameter doesn't implement `error` interface")
+		logpanicln("last output parameter doesn't implement `error` interface")
 	}
 	ctx.infer.Ret(1, &wrapValue{x})
 	return func() {
@@ -864,7 +866,7 @@ func compileErrWrapExpr(ctx *blockCtx, v *ast.ErrWrapExpr) func() {
 			var retErr exec.Var
 			if v.Tok == token.QUESTION {
 				if retErr, ok = returnErr(fun); !ok {
-					log.Panicln("used `expr?` in a function that last output parameter is not an error")
+					logpanicln("used `expr?` in a function that last output parameter is not an error")
 				}
 			} else if v.Tok == token.NOT {
 				retErr = nil
@@ -882,7 +884,7 @@ func compileErrWrapExpr(ctx *blockCtx, v *ast.ErrWrapExpr) func() {
 			return
 		}
 		if nx != 2 {
-			log.Panicln("compileErrWrapExpr: output parameters count must be 2")
+			logpanicln("compileErrWrapExpr: output parameters count must be 2")
 		}
 		label := ctx.NewLabel("")
 		ctx.out.WrapIfErr(nx, label)
@@ -914,7 +916,7 @@ func getFuncInfo(fun exec.FuncInfo) (name string, narg int) {
 
 func compileSelectorExprLHS(ctx *blockCtx, v *ast.SelectorExpr, mode compleMode) {
 	if mode == lhsDefine {
-		log.Panicln("compileSelectorExprLHS: `:=` can't be used for index expression")
+		logpanicln("compileSelectorExprLHS: `:=` can't be used for index expression")
 	}
 	in := ctx.infer.Get(-1)
 	exprX := compileExpr(ctx, v.X)
@@ -925,11 +927,11 @@ func compileSelectorExprLHS(ctx *blockCtx, v *ast.SelectorExpr, mode compleMode)
 		switch nv := vx.v.(type) {
 		case exec.GoPackage:
 			if c, ok := nv.FindConst(v.Sel.Name); ok {
-				log.Panicln("cannot assign to ", c.Pkg.PkgPath()+"."+c.Name)
+				logpanicln("cannot assign to ", c.Pkg.PkgPath()+"."+c.Name)
 			}
 			addr, kind, ok := nv.Find(v.Sel.Name)
 			if !ok {
-				log.Panicln("compileSelectorExprLHS: not found -", nv.PkgPath(), v.Sel.Name)
+				logpanicln("compileSelectorExprLHS: not found -", nv.PkgPath(), v.Sel.Name)
 			}
 			switch kind {
 			case exec.SymbolVar:
@@ -938,19 +940,19 @@ func compileSelectorExprLHS(ctx *blockCtx, v *ast.SelectorExpr, mode compleMode)
 				checkType(t, in, ctx.out)
 				ctx.out.StoreGoVar(exec.GoVarAddr(addr))
 			default:
-				log.Panicln("compileSelectorExprLHS: unknown GoPackage symbol kind -", kind)
+				logpanicln("compileSelectorExprLHS: unknown GoPackage symbol kind -", kind)
 			}
 		default:
-			log.Panicln("compileSelectorExprLHS: unknown nonValue -", reflect.TypeOf(nv))
+			logpanicln("compileSelectorExprLHS: unknown nonValue -", reflect.TypeOf(nv))
 		}
 	case *goValue:
 		_, t := countPtr(vx.t)
 		name := v.Sel.Name
 		if sf, ok := t.FieldByName(name); ok {
-			log.Panicln("compileSelectorExprLHS todo: structField -", t, sf)
+			logpanicln("compileSelectorExprLHS todo: structField -", t, sf)
 		}
 	default:
-		log.Panicln("compileSelectorExprLHS failed: unknown -", reflect.TypeOf(vx))
+		logpanicln("compileSelectorExprLHS failed: unknown -", reflect.TypeOf(vx))
 	}
 	_ = exprX
 }
@@ -975,13 +977,13 @@ func compileSelectorExpr(ctx *blockCtx, v *ast.SelectorExpr, allowAutoCall bool)
 			}
 			addr, kind, ok := nv.Find(name)
 			if !ok {
-				log.Panicln("compileSelectorExpr: not found -", nv.PkgPath(), name)
+				logpanicln("compileSelectorExpr: not found -", nv.PkgPath(), name)
 			}
 			switch kind {
 			case exec.SymbolFunc, exec.SymbolFuncv:
 				ctx.infer.Ret(1, newGoFunc(addr, kind, 0, ctx))
 				return func() {
-					log.Panicln("compileSelectorExpr: todo")
+					logpanicln("compileSelectorExpr: todo")
 				}
 			case exec.SymbolVar:
 				info := ctx.GetGoVarInfo(exec.GoVarAddr(addr))
@@ -995,17 +997,17 @@ func compileSelectorExpr(ctx *blockCtx, v *ast.SelectorExpr, allowAutoCall bool)
 					}
 				}
 			default:
-				log.Panicln("compileSelectorExpr: unknown GoPackage symbol kind -", kind)
+				logpanicln("compileSelectorExpr: unknown GoPackage symbol kind -", kind)
 			}
 		default:
-			log.Panicln("compileSelectorExpr: unknown nonValue -", reflect.TypeOf(nv))
+			logpanicln("compileSelectorExpr: unknown nonValue -", reflect.TypeOf(nv))
 		}
 	case *goValue:
 		n, t := countPtr(vx.t)
 		autoCall := false
 		name := v.Sel.Name
 		if sf, ok := t.FieldByName(name); ok {
-			log.Panicln("compileSelectorExpr todo: structField -", t, sf)
+			logpanicln("compileSelectorExpr todo: structField -", t, sf)
 		}
 		if _, ok := vx.t.MethodByName(name); !ok && isLower(name) {
 			name = strings.Title(name)
@@ -1013,17 +1015,17 @@ func compileSelectorExpr(ctx *blockCtx, v *ast.SelectorExpr, allowAutoCall bool)
 				v.Sel.Name = name
 				autoCall = allowAutoCall
 			} else {
-				log.Panicln("compileSelectorExpr: symbol not found -", v.Sel.Name)
+				logpanicln("compileSelectorExpr: symbol not found -", v.Sel.Name)
 			}
 		}
 		pkgPath, method := normalizeMethod(n, t, name)
 		pkg := ctx.FindGoPackage(pkgPath)
 		if pkg == nil {
-			log.Panicln("compileSelectorExpr failed: package not found -", pkgPath)
+			logpanicln("compileSelectorExpr failed: package not found -", pkgPath)
 		}
 		addr, kind, ok := pkg.Find(method)
 		if !ok {
-			log.Panicln("compileSelectorExpr: method not found -", method)
+			logpanicln("compileSelectorExpr: method not found -", method)
 		}
 		ctx.infer.Ret(1, newGoFunc(addr, kind, 1, ctx))
 		if autoCall { // change AST tree
@@ -1034,10 +1036,10 @@ func compileSelectorExpr(ctx *blockCtx, v *ast.SelectorExpr, allowAutoCall bool)
 			return compileCallExprCall(ctx, nil, call)
 		}
 		return func() {
-			log.Panicln("compileSelectorExpr: todo")
+			logpanicln("compileSelectorExpr: todo")
 		}
 	default:
-		log.Panicln("compileSelectorExpr failed: unknown -", reflect.TypeOf(vx))
+		logpanicln("compileSelectorExpr failed: unknown -", reflect.TypeOf(vx))
 	}
 	_ = exprX
 	return nil

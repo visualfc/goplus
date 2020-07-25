@@ -67,12 +67,12 @@ func checkSliceType(args []interface{}, i int) (typ reflect.Type, ok bool) {
 // func append(slice []Type, elems ...Type) []Type
 func igoAppend(ctx *blockCtx, v *ast.CallExpr) func() {
 	if len(v.Args) < 2 {
-		log.Panicln("append: argument count not enough")
+		logpanicln("append: argument count not enough")
 	}
 	sliceExpr := compileExpr(ctx, v.Args[0])
 	sliceTy := ctx.infer.Get(-1).(iValue).Type()
 	if sliceTy.Kind() != reflect.Slice {
-		log.Panicln("append: first argument not a slice")
+		logpanicln("append: first argument not a slice")
 	}
 	return func() {
 		sliceExpr()
@@ -84,7 +84,7 @@ func igoAppend(ctx *blockCtx, v *ast.CallExpr) func() {
 		elem := sliceTy.Elem()
 		if isEllipsis(v) {
 			if n1 != 1 {
-				log.Panicln("append: please use `append(slice, elems...)`")
+				logpanicln("append: please use `append(slice, elems...)`")
 			}
 			checkType(sliceTy, args[0], ctx.out)
 			ctx.infer.PopN(1)
@@ -100,15 +100,15 @@ func igoAppend(ctx *blockCtx, v *ast.CallExpr) func() {
 // func copy(dst, src []Type) int
 func igoCopy(ctx *blockCtx, v *ast.CallExpr) func() {
 	if len(v.Args) < 2 {
-		log.Panicln("not enough arguments in call to copy")
+		logpanicln("not enough arguments in call to copy")
 	}
 	if len(v.Args) > 2 {
-		log.Panicln("too many arguments in call to copy")
+		logpanicln("too many arguments in call to copy")
 	}
 	dstExpr := compileExpr(ctx, v.Args[0])
 	dstTy := ctx.infer.Get(-1).(iValue).Type()
 	if dstTy.Kind() != reflect.Slice {
-		log.Panicln("arguments to copy must be slices; have ", dstTy.Kind())
+		logpanicln("arguments to copy must be slices; have ", dstTy.Kind())
 	}
 	ctx.infer.Ret(1, &goValue{exec.TyInt})
 	return func() {
@@ -122,10 +122,10 @@ func igoCopy(ctx *blockCtx, v *ast.CallExpr) func() {
 			}
 		case reflect.String:
 			if dstTy.Elem().Kind() != reflect.Uint8 {
-				log.Panicln("arguments to copy have different element types:", dstTy.Kind(), srcTy.Kind())
+				logpanicln("arguments to copy have different element types:", dstTy.Kind(), srcTy.Kind())
 			}
 		default:
-			log.Panicln("second argument to copy should be slice or string; have", srcTy.Kind())
+			logpanicln("second argument to copy should be slice or string; have", srcTy.Kind())
 		}
 		ctx.infer.Pop()
 		ctx.out.GoBuiltin(dstTy, exec.GobCopy)
@@ -135,15 +135,15 @@ func igoCopy(ctx *blockCtx, v *ast.CallExpr) func() {
 // func delete(m map[Type]Type1, key Type)
 func igoDelete(ctx *blockCtx, v *ast.CallExpr) func() {
 	if len(v.Args) < 2 {
-		log.Panicln("missing second (key) argument to delete")
+		logpanicln("missing second (key) argument to delete")
 	}
 	if len(v.Args) > 2 {
-		log.Panicln("too many arguments to delete")
+		logpanicln("too many arguments to delete")
 	}
 	mapExpr := compileExpr(ctx, v.Args[0])
 	mapType := ctx.infer.Get(-1).(iValue).Type()
 	if mapType.Kind() != reflect.Map {
-		log.Panicln(" first argument to delete must be map; have", mapType.Kind())
+		logpanicln(" first argument to delete must be map; have", mapType.Kind())
 	}
 	return func() {
 		mapExpr()
@@ -233,7 +233,7 @@ func igoMake(ctx *blockCtx, v *ast.CallExpr) func() {
 	switch kind {
 	case reflect.Slice, reflect.Map, reflect.Chan:
 	default:
-		log.Panicln("make: invalid type, must be a slice, map or chan -", t)
+		logpanicln("make: invalid type, must be a slice, map or chan -", t)
 	}
 	typ := t.(reflect.Type)
 	ctx.infer.Push(&goValue{t: typ})
@@ -244,7 +244,7 @@ func igoMake(ctx *blockCtx, v *ast.CallExpr) func() {
 			checkIntType(ctx.infer.Pop(), ctx.out)
 		}
 		if kind == reflect.Slice && n1 == 0 {
-			log.Panicln("make slice: must specified length of slice")
+			logpanicln("make slice: must specified length of slice")
 		}
 		ctx.out.Make(typ, n1)
 	}
@@ -282,7 +282,7 @@ func igoRecover(ctx *blockCtx, v *ast.CallExpr) func() {
 
 func compileTypeCast(typ reflect.Type, ctx *blockCtx, v *ast.CallExpr) func() {
 	if len(v.Args) != 1 {
-		log.Panicln("compileTypeCast: invalid argument count, please use `type(expr)`")
+		logpanicln("compileTypeCast: invalid argument count, please use `type(expr)`")
 	}
 	xExpr := compileExpr(ctx, v.Args[0])
 	in := ctx.infer.Get(-1)

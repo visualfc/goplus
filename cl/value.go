@@ -21,7 +21,6 @@ import (
 
 	"github.com/goplus/gop/ast/astutil"
 	"github.com/goplus/gop/exec.spec"
-	"github.com/qiniu/x/log"
 )
 
 type iKind = astutil.ConstKind
@@ -197,7 +196,7 @@ func newGoFunc(addr uint32, kind exec.SymbolKind, isMethod int, ctx *blockCtx) *
 	case exec.SymbolFuncv:
 		t = ctx.GetGoFuncvType(exec.GoFuncvAddr(addr))
 	default:
-		log.Panicln("getGoFunc: unknown -", kind, addr)
+		logpanicln("getGoFunc: unknown -", kind, addr)
 	}
 	return &goFunc{t: t, addr: addr, kind: kind, isMethod: isMethod}
 }
@@ -277,7 +276,7 @@ func (p *constVal) boundKind() reflect.Kind {
 	case astutil.ConstUnboundComplex:
 		return reflect.Complex128
 	}
-	log.Panicln("boundKind: unexpected type kind -", p.kind)
+	logpanicln("boundKind: unexpected type kind -", p.kind)
 	return reflect.Invalid
 }
 
@@ -299,7 +298,7 @@ func (p *constVal) bound(t reflect.Type, b exec.Builder) {
 			if t == exec.TyEmptyInterface {
 				return
 			}
-			log.Panicln("function call with invalid argument type: requires", t, ", but got", p.kind)
+			logpanicln("function call with invalid argument type: requires", t, ", but got", p.kind)
 		}
 		return
 	}
@@ -318,7 +317,7 @@ func unaryOp(op exec.Operator, x *constVal) *constVal {
 		kindReal = realKindOf(xkind)
 	}
 	if (i.InFirst & (1 << kindReal)) == 0 {
-		log.Panicln("unaryOp failed: invalid argument type.")
+		logpanicln("unaryOp failed: invalid argument type.")
 	}
 	t := exec.TypeFromKind(kindReal)
 	vx := boundConst(x.v, t)
@@ -342,7 +341,7 @@ func binaryOp(op exec.Operator, x, y *constVal) *constVal {
 	}
 	if (i.InFirst & (1 << kindReal)) == 0 {
 		if kindReal != exec.BigInt && op != exec.OpQuo {
-			log.Panicln("binaryOp failed: invalid first argument type -", i, kindReal)
+			logpanicln("binaryOp failed: invalid first argument type -", i, kindReal)
 		}
 		kind = exec.BigRat
 	} else if i.Out != exec.SameAsFirst {
@@ -376,7 +375,7 @@ func boundConst(v interface{}, t reflect.Type) interface{} {
 		if kind >= reflect.Chan && kind <= reflect.Slice {
 			return reflect.Zero(t).Interface()
 		}
-		log.Panicln("boundConst: can't convert nil into", t)
+		logpanicln("boundConst: can't convert nil into", t)
 	}
 	sval := reflect.ValueOf(v)
 	st := sval.Type()
@@ -406,7 +405,7 @@ func boundConst(v interface{}, t reflect.Type) interface{} {
 		case skind == exec.BigFloat:
 			val.MethodByName("SetRat").Call([]reflect.Value{sval})
 		default:
-			log.Panicln("boundConst: convert type failed -", skind)
+			logpanicln("boundConst: convert type failed -", skind)
 		}
 		return val.Interface()
 	}
@@ -444,7 +443,7 @@ func boundElementType(elts []interface{}, base, max, step int) reflect.Type {
 	for i := base; i < max; i += step {
 		e := elts[i].(iValue)
 		if e.NumValues() != 1 {
-			log.Panicln("boundElementType: unexpected - multiple return values.")
+			logpanicln("boundElementType: unexpected - multiple return values.")
 		}
 		kind := e.Kind()
 		if !isConstBound(kind) { // unbound

@@ -52,10 +52,10 @@ func checkFuncCall(tfn iFuncType, isMethod int, v *ast.CallExpr, ctx *blockCtx) 
 	args := ctx.infer.GetArgs(nargIn)
 	if isEllipsis(v) {
 		if !variadic {
-			log.Panicln("checkFuncCall: call a non variadic function with ...")
+			logpanicln("checkFuncCall: call a non variadic function with ...")
 		}
 		if nargIn != nargExp {
-			log.Panicln("checkFuncCall: call with unexpected argument count")
+			logpanicln("checkFuncCall: call with unexpected argument count")
 		}
 		checkFuncArgs(tfn, args, ctx.out)
 		arity = -1
@@ -65,7 +65,7 @@ func checkFuncCall(tfn iFuncType, isMethod int, v *ast.CallExpr, ctx *blockCtx) 
 			n := in.NumValues()
 			if n != 1 {
 				if n == 0 {
-					log.Panicln("checkFuncCall:", ErrFuncArgNoReturnValue)
+					logpanicln("checkFuncCall:", ErrFuncArgNoReturnValue)
 				}
 				args = make([]interface{}, 0, n+isMethod)
 				if isMethod > 0 {
@@ -78,13 +78,13 @@ func checkFuncCall(tfn iFuncType, isMethod int, v *ast.CallExpr, ctx *blockCtx) 
 		}
 		if !variadic {
 			if len(args) != nargExp {
-				log.Panicln("checkFuncCall: call with unexpected argument count")
+				logpanicln("checkFuncCall: call with unexpected argument count")
 			}
 			checkFuncArgs(tfn, args, ctx.out)
 		} else {
 			nargExp--
 			if len(args) < nargExp {
-				log.Panicln("checkFuncCall: argument count is not enough")
+				logpanicln("checkFuncCall: argument count is not enough")
 			}
 			checkFuncArgs(tfn, args[:nargExp], ctx.out)
 			nVariadic := len(args) - nargExp
@@ -125,7 +125,7 @@ func checkBinaryOp(kind exec.Kind, op exec.Operator, x, y interface{}, b exec.Bu
 		i := op.GetInfo()
 		if i.InSecond != (1 << exec.SameAsFirst) {
 			if (uint64(ycons.kind) & i.InSecond) == 0 {
-				log.Panicln("checkBinaryOp: invalid operator", kind, "argument type.")
+				logpanicln("checkBinaryOp: invalid operator", kind, "argument type.")
 			}
 			kind = ycons.boundKind()
 		}
@@ -189,15 +189,15 @@ func checkCaseCompare(x, y interface{}, b exec.Builder) {
 
 func checkBool(v interface{}) {
 	if !isBool(v.(iValue)) {
-		log.Panicln("checkBool failed: bool expression required.")
+		logpanicln("checkBool failed: bool expression required.")
 	}
 }
 
 func panicExprNotValue(n int) {
 	if n == 0 {
-		log.Panicln("checkFuncCall:", ErrFuncArgNoReturnValue)
+		logpanicln("checkFuncCall:", ErrFuncArgNoReturnValue)
 	} else {
-		log.Panicln("checkFuncCall:", ErrFuncArgCantBeMultiValue)
+		logpanicln("checkFuncCall:", ErrFuncArgCantBeMultiValue)
 	}
 }
 

@@ -22,7 +22,6 @@ import (
 	"github.com/goplus/gop/ast"
 	"github.com/goplus/gop/exec.spec"
 	"github.com/goplus/gop/token"
-	"github.com/qiniu/x/log"
 )
 
 // -----------------------------------------------------------------------------
@@ -81,7 +80,7 @@ func isNoExecCtxStmt(ctx *blockCtx, stmt ast.Stmt) bool {
 	case *ast.DeferStmt:
 		return isNoExecCtxCallExpr(ctx, v.Call)
 	default:
-		log.Panicln("isNoExecCtxStmt failed: unknown -", reflect.TypeOf(v))
+		logpanicln("isNoExecCtxStmt failed: unknown -", reflect.TypeOf(v))
 	}
 	return true
 }
@@ -123,7 +122,7 @@ func isNoExecCtxExpr(ctx *blockCtx, expr ast.Expr) bool {
 	case *ast.KeyValueExpr:
 		return isNoExecCtx2nd(ctx, v.Key, v.Value)
 	default:
-		log.Panicln("isNoExecCtxExpr failed: unknown -", reflect.TypeOf(v))
+		logpanicln("isNoExecCtxExpr failed: unknown -", reflect.TypeOf(v))
 	}
 	return true
 }
@@ -295,7 +294,7 @@ func isNoExecCtxSwitchStmt(ctx *blockCtx, v *ast.SwitchStmt) bool {
 	for _, item := range v.Body.List {
 		c, ok := item.(*ast.CaseClause)
 		if !ok {
-			log.Panicln("compile SwitchStmt failed: case clause expected.")
+			logpanicln("compile SwitchStmt failed: case clause expected.")
 		}
 		if noExecCtx := isNoExecCtxExprs(ctxSw, c.List); !noExecCtx {
 			return false
@@ -354,7 +353,7 @@ func isNoExecCtxExprLHS(ctx *blockCtx, expr ast.Expr, mode compleMode) bool {
 	case *ast.SelectorExpr:
 		return isNoExecCtxSelectorExprLHS(ctx, v, mode)
 	default:
-		log.Panicln("isNoExecCtxExprLHS failed: unknown -", reflect.TypeOf(v))
+		logpanicln("isNoExecCtxExprLHS failed: unknown -", reflect.TypeOf(v))
 	}
 	return true
 }
