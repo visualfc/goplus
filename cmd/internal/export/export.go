@@ -106,13 +106,13 @@ func runCmd(cmd *base.Command, args []string) {
 			}
 			if pkg.Module != nil && pkg.Module.GoMod != goMod {
 				goMod = pkg.Module.GoMod
-				fmt.Fprintf(os.Stderr, "go: mod finding %v\n", pkg.Module.Dir)
+				fmt.Fprintf(os.Stderr, "go: finding module in %v\n", pkg.Module.Dir)
 			}
 			err := exportPkg(pkg.ImportPath, pkg.Dir, pkg.Goroot)
 			if err == nil {
 				exportList = append(exportList, pkg.ImportPath)
 				fmt.Fprintf(os.Stdout, "export %q success\n", pkg.ImportPath)
-			} else {
+			} else if err != gopkg.ErrIgnore {
 				fmt.Fprintf(os.Stderr, "export %q error: %v\n", pkg.ImportPath, err)
 			}
 		}
@@ -152,10 +152,6 @@ func LookupPkgList(pkgPath string, exporAll bool) ([]*jsonPackage, error) {
 		return nil, fmt.Errorf("download %q failed, %v", mod, err)
 	}
 	dir := filepath.Join(info.Dir, sub)
-	rpkg, _ := checkGoPkg(info.Dir)
-	if rpkg != info.Path {
-		return nil, fmt.Errorf("unsupport replace module %q", rpkg)
-	}
 	if pkgs, err := checkGoPkgList(pkg, dir, exporAll); err != nil || len(pkgs) > 0 {
 		return pkgs, err
 	}
@@ -175,7 +171,7 @@ type jsonModInfo struct {
 }
 
 func downloadMod(pkgPath string) (*jsonModInfo, error) {
-	fmt.Println("go: mod downloading", pkgPath)
+	fmt.Println("go: downloading module", pkgPath)
 	cmd := exec.Command(gobin, "mod", "download", "-json", pkgPath)
 	data, err := cmd.Output()
 	if err != nil {
@@ -199,6 +195,11 @@ func exportPkg(pkgPath string, srcDir string, goRoot bool) (err error) {
 	}
 	if err != nil {
 		return fmt.Errorf("import %q failed: %v", pkgPath, err)
+	}
+	for _, im := range pkg.Imports() {
+		if isIgnorePkg(im.Path()) {
+			return gopkg.ErrIgnore
+		}
 	}
 	var buf bytes.Buffer
 	err = gopkg.ExportPackage(pkg, &buf)

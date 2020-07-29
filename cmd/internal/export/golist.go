@@ -20,7 +20,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"os"
 	"os/exec"
 	"strings"
 	"time"
@@ -111,14 +110,19 @@ type jsonModuleError struct {
 }
 
 func checkGoPkgList(pkgPath string, srcDir string, allpkgs bool) (pkgs []*jsonPackage, err error) {
+	spkg := pkgPath
 	if allpkgs && !strings.HasSuffix(pkgPath, "/...") {
-		pkgPath += "/..."
+		spkg += "/..."
 	}
-	cmd := exec.Command(gobin, "list", "-json", pkgPath)
+	cmd := exec.Command(gobin, "list", "-json", spkg)
 	cmd.Dir = srcDir
-	cmd.Stderr = os.Stderr
-	data, err := cmd.Output()
+	data, err := cmd.CombinedOutput()
 	if err != nil {
+		if rpkg, err := checkGoPkg(srcDir); err == nil {
+			if rpkg != pkgPath {
+				return nil, fmt.Errorf("unsupport replace module %v", rpkg)
+			}
+		}
 		return nil, err
 	}
 	buf := bytes.NewBuffer(data)
