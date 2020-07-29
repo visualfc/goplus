@@ -21,7 +21,9 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"go/build"
 	"go/format"
+	"go/token"
 	"go/types"
 	"io/ioutil"
 	"os"
@@ -31,6 +33,7 @@ import (
 
 	"github.com/goplus/gop/cmd/internal/base"
 	"github.com/goplus/gop/cmd/internal/export/gopkg"
+	"github.com/goplus/gop/cmd/internal/export/srcimporter"
 )
 
 var (
@@ -191,7 +194,8 @@ func exportPkg(pkgPath string, srcDir string, goRoot bool) (err error) {
 	if goRoot {
 		pkg, err = gopkg.Import(pkgPath)
 	} else {
-		pkg, err = gopkg.ImportSource(pkgPath, srcDir)
+		imp := srcimporter.New(&build.Default, token.NewFileSet(), make(map[string]*types.Package))
+		pkg, err = imp.ImportFrom(pkgPath, srcDir, 0)
 	}
 	if err != nil {
 		return fmt.Errorf("import %q failed: %v", pkgPath, err)
