@@ -127,12 +127,13 @@ func (p *Importer) ImportFrom(path, srcDir string, mode types.ImportMode) (*type
 	}
 	pkg, err = conf.Check(bp.ImportPath, p.fset, files, nil)
 	if err != nil {
-		// If there was a hard error it is possibly unsafe
-		// to use the package as it may not be fully populated.
-		// Do not return it (see also #20837, #20855).
+		// fix cgo check, glfw
 		if pkg != nil && pkg.Complete() {
 			return pkg, nil
 		}
+		// If there was a hard error it is possibly unsafe
+		// to use the package as it may not be fully populated.
+		// Do not return it (see also #20837, #20855).
 		if firstHardErr != nil {
 			pkg = nil
 			err = firstHardErr // give preference to first hard error over any soft error
