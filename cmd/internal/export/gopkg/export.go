@@ -43,6 +43,16 @@ func exportFunc(e *Exporter, o *types.Func, prefix string) (err error) {
 }
 
 func exportTypeName(e *Exporter, o *types.TypeName) (err error) {
+	if inter, ok := o.Type().Underlying().(*types.Interface); ok {
+		for i := 0; i < inter.NumExplicitMethods(); i++ {
+			m := inter.ExplicitMethod(i)
+			if !m.Exported() {
+				continue
+			}
+			exportFunc(e, m, " ")
+		}
+		return
+	}
 	t := o.Type().(*types.Named)
 	n := t.NumMethods()
 	for i := 0; i < n; i++ {

@@ -107,6 +107,31 @@ func TestFixPkgString(t *testing.T) {
 	}
 }
 
+func TestExportInterface(t *testing.T) {
+	b := bytes.NewBuffer(nil)
+	err := Export("io", b)
+	if err != nil {
+		t.Fatal("export io error", err)
+	}
+	var readerLines []string
+	count := make(map[string]int)
+	for _, line := range strings.Split(b.String(), "\n") {
+		line = strings.TrimSpace(line)
+		if strings.HasPrefix(line, `I.Func`) {
+			if strings.HasPrefix(line, `I.Func("(Reader)`) {
+				readerLines = append(readerLines, line)
+			}
+			count[line]++
+			if count[line] > 1 {
+				t.Fatal("duplicate line", line)
+			}
+		}
+	}
+	if len(readerLines) != 1 {
+		t.Fatal("io.Reader", readerLines)
+	}
+}
+
 func TestExportStrings(t *testing.T) {
 	err := Export("strings", ioutil.Discard)
 	if err != nil {
