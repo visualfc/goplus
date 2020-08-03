@@ -362,7 +362,21 @@ func (p *Builder) Call(narg int, ellipsis bool, args ...ast.Expr) *Builder {
 		args = append(args, item.(ast.Expr))
 	}
 	p.rhs.PopN(narg)
-	expr := &ast.CallExpr{Fun: fun, Args: args}
+	var expr *ast.CallExpr
+	if ident, ok := fun.(*ast.Ident); ok && strings.HasPrefix(ident.Name, "(") {
+		if pos := strings.LastIndex(ident.Name, "."); pos != -1 && ident.Name[pos-1] == ')' {
+			expr = &ast.CallExpr{
+				Fun: &ast.SelectorExpr{
+					X:   args[0],
+					Sel: Ident(ident.Name[pos+1:]),
+				},
+				Args: args[1:],
+			}
+		}
+	}
+	if expr == nil {
+		expr = &ast.CallExpr{Fun: fun, Args: args}
+	}
 	if ellipsis {
 		expr.Ellipsis++
 	}
