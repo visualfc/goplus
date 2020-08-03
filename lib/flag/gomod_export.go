@@ -269,6 +269,12 @@ func execFloat64Var(_ int, p *gop.Context) {
 	p.PopN(4)
 }
 
+func execmGetterGet(_ int, p *gop.Context) {
+	args := p.GetArgs(1)
+	ret0 := args[0].(flag.Getter).Get()
+	p.Ret(1, ret0)
+}
+
 func execInt(_ int, p *gop.Context) {
 	args := p.GetArgs(3)
 	ret0 := flag.Int(args[0].(string), args[1].(int), args[2].(string))
@@ -378,6 +384,18 @@ func execUnquoteUsage(_ int, p *gop.Context) {
 	p.Ret(1, ret0, ret1)
 }
 
+func execmValueSet(_ int, p *gop.Context) {
+	args := p.GetArgs(2)
+	ret0 := args[0].(flag.Value).Set(args[1].(string))
+	p.Ret(2, ret0)
+}
+
+func execmValueString(_ int, p *gop.Context) {
+	args := p.GetArgs(1)
+	ret0 := args[0].(flag.Value).String()
+	p.Ret(1, ret0)
+}
+
 func execVar(_ int, p *gop.Context) {
 	args := p.GetArgs(3)
 	flag.Var(toType1(args[0]), args[1].(string), args[2].(string))
@@ -442,6 +460,7 @@ func init() {
 		I.Func("(*FlagSet).Init", (*flag.FlagSet).Init, execmFlagSetInit),
 		I.Func("Float64", flag.Float64, execFloat64),
 		I.Func("Float64Var", flag.Float64Var, execFloat64Var),
+		I.Func("(Getter).Get", (flag.Getter).Get, execmGetterGet),
 		I.Func("Int", flag.Int, execInt),
 		I.Func("Int64", flag.Int64, execInt64),
 		I.Func("Int64Var", flag.Int64Var, execInt64Var),
@@ -461,6 +480,8 @@ func init() {
 		I.Func("Uint64Var", flag.Uint64Var, execUint64Var),
 		I.Func("UintVar", flag.UintVar, execUintVar),
 		I.Func("UnquoteUsage", flag.UnquoteUsage, execUnquoteUsage),
+		I.Func("(Value).Set", (flag.Value).Set, execmValueSet),
+		I.Func("(Value).String", (flag.Value).String, execmValueString),
 		I.Func("Var", flag.Var, execVar),
 		I.Func("Visit", flag.Visit, execVisit),
 		I.Func("VisitAll", flag.VisitAll, execVisitAll),

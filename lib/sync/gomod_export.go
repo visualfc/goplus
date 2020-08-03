@@ -25,6 +25,18 @@ func execmCondBroadcast(_ int, p *gop.Context) {
 	p.PopN(1)
 }
 
+func execmLockerLock(_ int, p *gop.Context) {
+	args := p.GetArgs(1)
+	args[0].(sync.Locker).Lock()
+	p.PopN(1)
+}
+
+func execmLockerUnlock(_ int, p *gop.Context) {
+	args := p.GetArgs(1)
+	args[0].(sync.Locker).Unlock()
+	p.PopN(1)
+}
+
 func execmMapLoad(_ int, p *gop.Context) {
 	args := p.GetArgs(2)
 	ret0, ret1 := args[0].(*sync.Map).Load(args[1])
@@ -154,6 +166,8 @@ func init() {
 		I.Func("(*Cond).Wait", (*sync.Cond).Wait, execmCondWait),
 		I.Func("(*Cond).Signal", (*sync.Cond).Signal, execmCondSignal),
 		I.Func("(*Cond).Broadcast", (*sync.Cond).Broadcast, execmCondBroadcast),
+		I.Func("(Locker).Lock", (sync.Locker).Lock, execmLockerLock),
+		I.Func("(Locker).Unlock", (sync.Locker).Unlock, execmLockerUnlock),
 		I.Func("(*Map).Load", (*sync.Map).Load, execmMapLoad),
 		I.Func("(*Map).Store", (*sync.Map).Store, execmMapStore),
 		I.Func("(*Map).LoadOrStore", (*sync.Map).LoadOrStore, execmMapLoadOrStore),

@@ -43,6 +43,24 @@ func execNewSourceFrom(_ int, p *gop.Context) {
 	p.Ret(5, ret0, ret1)
 }
 
+func execmNodeForEach(_ int, p *gop.Context) {
+	args := p.GetArgs(2)
+	ret0 := args[0].(gopq.Node).ForEach(args[1].(func(node gopq.Node) error))
+	p.Ret(2, ret0)
+}
+
+func execmNodeObj(_ int, p *gop.Context) {
+	args := p.GetArgs(1)
+	ret0 := args[0].(gopq.Node).Obj()
+	p.Ret(1, ret0)
+}
+
+func execmNodeEnumForEach(_ int, p *gop.Context) {
+	args := p.GetArgs(2)
+	ret0 := args[0].(gopq.NodeEnum).ForEach(args[1].(func(node gopq.Node) error))
+	p.Ret(2, ret0)
+}
+
 func execmNodeSetOk(_ int, p *gop.Context) {
 	args := p.GetArgs(1)
 	ret0 := args[0].(gopq.NodeSet).Ok()
@@ -167,6 +185,9 @@ func init() {
 		I.Func("NameOf", gopq.NameOf, execNameOf),
 		I.Func("NewSource", gopq.NewSource, execNewSource),
 		I.Func("NewSourceFrom", gopq.NewSourceFrom, execNewSourceFrom),
+		I.Func("(Node).ForEach", (gopq.Node).ForEach, execmNodeForEach),
+		I.Func("(Node).Obj", (gopq.Node).Obj, execmNodeObj),
+		I.Func("(NodeEnum).ForEach", (gopq.NodeEnum).ForEach, execmNodeEnumForEach),
 		I.Func("(NodeSet).Ok", (gopq.NodeSet).Ok, execmNodeSetOk),
 		I.Func("(NodeSet).FuncDecl", (gopq.NodeSet).FuncDecl, execmNodeSetFuncDecl),
 		I.Func("(NodeSet).GenDecl", (gopq.NodeSet).GenDecl, execmNodeSetGenDecl),
