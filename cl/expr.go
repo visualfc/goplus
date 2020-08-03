@@ -1006,8 +1006,10 @@ func compileSelectorExpr(ctx *blockCtx, v *ast.SelectorExpr, allowAutoCall bool)
 		n, t := countPtr(vx.t)
 		autoCall := false
 		name := v.Sel.Name
-		if sf, ok := t.FieldByName(name); ok {
-			log.Panicln("compileSelectorExpr todo: structField -", t, sf)
+		if t.Kind() == reflect.Struct {
+			if sf, ok := t.FieldByName(name); ok {
+				log.Panicln("compileSelectorExpr todo: structField -", t, sf)
+			}
 		}
 		if _, ok := vx.t.MethodByName(name); !ok && isLower(name) {
 			name = strings.Title(name)
@@ -1025,7 +1027,7 @@ func compileSelectorExpr(ctx *blockCtx, v *ast.SelectorExpr, allowAutoCall bool)
 		}
 		addr, kind, ok := pkg.Find(method)
 		if !ok {
-			log.Panicln("compileSelectorExpr: method not found -", method)
+			log.Panicln("compileSelectorExpr: method not found -", pkgPath, method)
 		}
 		ctx.infer.Ret(1, newGoFunc(addr, kind, 1, ctx))
 		if autoCall { // change AST tree
