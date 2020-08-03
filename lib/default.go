@@ -1,6 +1,6 @@
 package lib
 
-//go:generate qexp bytes errors flag fmt io/... log os reflect strconv strings sync/... time
+//go:generate qexp bytes flag fmt io/... log os reflect strconv strings sync/... time
 //go:generate qexp github.com/goplus/gop/ast/gopq github.com/goplus/gop/ast/goptest
 
 import (
