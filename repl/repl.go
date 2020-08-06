@@ -19,6 +19,7 @@ package repl
 import (
 	"errors"
 	"fmt"
+	"reflect"
 	"strings"
 
 	"github.com/goplus/gop/cl"
@@ -52,7 +53,68 @@ const (
 
 // New creates a REPL object.
 func New() *REPL {
-	return &REPL{}
+	r := &REPL{}
+
+	pkg := exec.FindGoPackage("").(*exec.GoPackage)
+	pkg.RegisterFuncs(
+		pkg.Func("eval", r.eval, func(_ int, ctx *exec.Context) {
+			args := ctx.GetArgs(1)
+			ret, err := r.eval(args[0].(string))
+			ctx.Ret(1, ret, err)
+		}),
+		pkg.Func("rtype", r.rtype, func(_ int, ctx *exec.Context) {
+			args := ctx.GetArgs(1)
+			ret := r.rtype(args[0])
+			ctx.Ret(1, ret)
+		}),
+	)
+
+	return r
+}
+
+func (r *REPL) rtype(v interface{}) reflect.Type {
+	return reflect.TypeOf(v)
+}
+
+func (r *REPL) eval(src string) (ret interface{}, err error) {
+	src = r.src + src + "\n"
+	defer func() {
+		if errR := recover(); errR != nil {
+			err = fmt.Errorf("panic %v", errR)
+			ret = nil
+		}
+	}()
+	fset := token.NewFileSet()
+	pkgs, err := parser.Parse(fset, "", src, 0)
+	if err != nil {
+		return nil, err
+	}
+	cl.CallBuiltinOp = exec.CallBuiltinOp
+
+	b := exec.NewBuilder(nil)
+
+	_, err = cl.NewPackage(b.Interface(), pkgs["main"], fset, cl.PkgActClMain)
+	if err != nil {
+		return nil, err
+	}
+	code := b.Resolve()
+	ctx := exec.NewContext(code)
+	if r.ip != 0 {
+		// if it is not the first time, restore pre var
+		r.preContext.CloneSetVarScope(ctx)
+	}
+	ctx.Exec(r.ip, code.Len())
+	size := ctx.Len()
+	if size == 0 {
+		return nil, nil
+	} else if size == 1 {
+		return ctx.Get(-1), nil
+	}
+	var array []interface{}
+	for i := 0; i < size; i++ {
+		array = append(array, ctx.Get(i-size))
+	}
+	return array, nil
 }
 
 // SetUI initializes UI.
