@@ -17,6 +17,7 @@
 package bytecode
 
 import (
+	"reflect"
 	"time"
 
 	"github.com/goplus/gop/exec.spec"
@@ -57,6 +58,22 @@ func NewContext(in exec.Code) *Context {
 	return p
 }
 
+// UpdateCode update context code and append new vars
+func (ctx *Context) UpdateCode(code *Code) {
+	if len(ctx.code.vlist) < len(code.vlist) {
+		typ := makeVarsContextType(code.vlist[len(ctx.code.vlist):], ctx)
+		ctx.vars = append(ctx.vars, reflect.New(typ).Elem())
+	}
+	ctx.code = code
+	ctx.Stack.data = nil
+}
+
+// CloneSetVarScope clone already set varScope to new context
+func (ctx *Context) CloneSetVarScope(new *Context) {
+	typ := makeVarsContextType(new.code.vlist[len(ctx.code.vlist):], new)
+	new.vars = append(ctx.vars, reflect.New(typ).Elem())
+}
+
 // Go starts a new goroutine to run.
 func (ctx *Context) Go(arity int, f func(goctx *Context)) {
 	goctx := &Context{
@@ -69,16 +86,6 @@ func (ctx *Context) Go(arity int, f func(goctx *Context)) {
 	goctx.data = append(goctx.data, ctx.data[base:]...)
 	ctx.data = ctx.data[:base]
 	go f(goctx)
-}
-
-// CloneSetVarScope clone already set varScope to new context
-func (ctx *Context) CloneSetVarScope(new *Context) {
-	if !ctx.vars.IsValid() {
-		return
-	}
-	for i := 0; i < ctx.vars.NumField(); i++ {
-		new.varScope.setVar(uint32(i), ctx.varScope.getVar(uint32(i)))
-	}
 }
 
 type savedScopeCtx struct {

@@ -49,7 +49,19 @@ func (p *StructInfo) Type() reflect.Type {
 
 // -----------------------------------------------------------------------------
 
-type varsContext = reflect.Value
+type varsContext []reflect.Value
+
+func (vars varsContext) Field(i int) reflect.Value {
+	var sum int
+	for _, v := range vars {
+		sum = v.NumField()
+		if i < sum {
+			return v.Field(i)
+		}
+		i -= sum
+	}
+	return reflect.ValueOf(nil)
+}
 
 func makeVarList(vars []*Var) []StructField {
 	exists := make(map[string]bool, len(vars))
@@ -83,7 +95,7 @@ func (p *varManager) makeVarsContext(ctx *Context) varsContext {
 	if p.tcache == nil {
 		p.tcache = makeVarsContextType(p.vlist, ctx)
 	}
-	return reflect.New(p.tcache).Elem()
+	return varsContext{reflect.New(p.tcache).Elem()}
 }
 
 func (ctx *varScope) addrVar(idx uint32) interface{} {
