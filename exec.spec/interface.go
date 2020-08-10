@@ -184,6 +184,9 @@ type Builder interface {
 	// Pop instr
 	Pop(n int) Builder
 
+	// PreCheckOp instr
+	PreCheckOp(kind Kind, op Operator) Builder
+
 	// BuiltinOp instr
 	BuiltinOp(kind Kind, op Operator) Builder
 

@@ -292,6 +292,11 @@ func BinaryOp(tok token.Token, x, y ast.Expr) ast.Expr {
 	return &ast.BinaryExpr{Op: tok, X: x, Y: y}
 }
 
+// PreCheckOp instr
+func (p *Builder) PreCheckOp(kind exec.Kind, op exec.Operator) *Builder {
+	return p
+}
+
 // BuiltinOp instr
 func (p *Builder) BuiltinOp(kind exec.Kind, op exec.Operator) *Builder {
 	if kind >= exec.BigInt {

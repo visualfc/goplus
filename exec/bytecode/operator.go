@@ -177,6 +177,27 @@ func toUint(v interface{}) uint {
 	}
 }
 
+func execPreCheckOp(i Instr, p *Context) {
+	op := Operator(i & ((1 << bitsOperator) - 1))
+	// log.Println("-->", p.ip, p.code.Len(), p.Stack.Len())
+	// return
+	if op == exec.OpLAnd {
+		a := p.Get(-1)
+		if b, ok := a.(bool); ok {
+			if !b {
+				p.ip += 3
+			}
+		}
+	} else if op == exec.OpLOr {
+		a := p.Get(-1)
+		if b, ok := a.(bool); ok {
+			if b {
+				p.ip += 3
+			}
+		}
+	}
+}
+
 func execBuiltinOp(i Instr, p *Context) {
 	if fn := builtinOps[int(i&bitsOperand)]; fn != nil {
 		fn(0, p)
@@ -213,6 +234,15 @@ func (p *Code) builtinOp(kind Kind, op Operator) error {
 		return nil
 	}
 	return fmt.Errorf("builtinOp: type %v doesn't support operator %v", kind, op)
+}
+
+// PreCheckOp instr
+func (p *Builder) PreCheckOp(kind Kind, op Operator) *Builder {
+	if kind == reflect.Bool {
+		i := (int(kind) << bitsOperator) | int(op)
+		p.code.data = append(p.code.data, (opPreCheckOp<<bitsOpShift)|uint32(i))
+	}
+	return p
 }
 
 // BuiltinOp instr

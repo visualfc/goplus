@@ -112,6 +112,12 @@ func (p *iBuilder) Pop(n int) exec.Builder {
 	return p
 }
 
+// PreCheckOp instr
+func (p *iBuilder) PreCheckOp(kind exec.Kind, op exec.Operator) exec.Builder {
+	((*Builder)(p)).PreCheckOp(kind, op)
+	return p
+}
+
 // BuiltinOp instr
 func (p *iBuilder) BuiltinOp(kind exec.Kind, op exec.Operator) exec.Builder {
 	((*Builder)(p)).BuiltinOp(kind, op)

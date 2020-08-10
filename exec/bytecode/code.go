@@ -124,6 +124,7 @@ const (
 	opWrapIfErr     = 43 // reserved(2) offset(24)
 	opDefer         = 44 // reserved(26)
 	opGo            = 45 // arity(26)
+	opPreCheckOp    = 46 // reserved(16) kind(5) builtinOp(5)
 )
 
 const (
@@ -211,6 +212,7 @@ var instrInfos = []InstrInfo{
 	opWrapIfErr:     {"wrapIfErr", "", "offset", 26},                      // reserved(2) offset(24)
 	opDefer:         {"defer", "", "", 0},                                 // reserved(26)
 	opGo:            {"go", "", "arity", 26},                              // arity(26)
+	opPreCheckOp:    {"preCheckOp", "kind", "op", (21 << 8) | 5},          // reserved(16) kind(5) builtinOp(5)
 }
 
 // -----------------------------------------------------------------------------

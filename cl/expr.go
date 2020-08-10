@@ -610,6 +610,7 @@ func compileBinaryExpr(ctx *blockCtx, v *ast.BinaryExpr) func() {
 	}
 	kind, ret := binaryOpResult(op, x, y)
 
+	var preCheckOp bool
 	switch op {
 	case exec.OpLOr:
 		if kind != exec.Bool {
@@ -624,9 +625,7 @@ func compileBinaryExpr(ctx *blockCtx, v *ast.BinaryExpr) func() {
 			}
 			return exprY
 		}
-		ctx.infer.PopN(2)
-		fn := &ast.CallExpr{Fun: makeOpFuncLit(v.Pos(), v.X, v.Y)}
-		return compileExpr(ctx, fn)
+		preCheckOp = true
 	case exec.OpLAnd:
 		if kind != exec.Bool {
 			log.Panicf("invalid operation: && (mismatched types %v)\n", kind)
@@ -640,13 +639,15 @@ func compileBinaryExpr(ctx *blockCtx, v *ast.BinaryExpr) func() {
 			}
 			return exprY
 		}
-		ctx.infer.PopN(2)
-		fn := &ast.CallExpr{Fun: makeOpFuncLit(v.Pos(), &ast.UnaryExpr{Op: token.NOT, X: v.X}, v.Y)}
-		return compileExpr(ctx, fn)
+		preCheckOp = true
 	}
 	ctx.infer.Ret(2, ret)
 	return func() {
 		exprX()
+		if preCheckOp {
+			//log.Println(ctx.infer.Len())
+			ctx.out.PreCheckOp(kind, op)
+		}
 		exprY()
 		checkBinaryOp(kind, op, x, y, ctx.out)
 		ctx.out.BuiltinOp(kind, op)

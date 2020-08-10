@@ -239,6 +239,7 @@ var _execTable = [...]func(i Instr, p *Context){
 	opWrapIfErr:     execWrapIfErr,
 	opDefer:         execDefer,
 	opGo:            execGo,
+	opPreCheckOp:    execPreCheckOp,
 }
 
 var execTable []func(i Instr, p *Context)
