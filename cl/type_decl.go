@@ -221,12 +221,42 @@ func toArgTypes(ctx *blockCtx, recv, fields *ast.FieldList) ([]reflect.Type, []s
 	return types, names, false
 }
 
+const (
+	exportPrefix = "Q_"
+)
+
+var (
+	unexportStructFieldMap = make(map[reflect.Type]fieldNameList)
+)
+
+type fieldNameList []string
+
+func (lst fieldNameList) Contains(field string) bool {
+	for _, v := range lst {
+		if v == field {
+			return true
+		}
+	}
+	return false
+}
+
 func toStructType(ctx *blockCtx, v *ast.StructType) iType {
 	var fields []reflect.StructField
 	for _, field := range v.Fields.List {
 		fields = append(fields, toStructField(ctx, field)...)
 	}
-	return reflect.StructOf(fields)
+	var unexports []string
+	for i, field := range fields {
+		if !ast.IsExported(field.Name) {
+			fields[i].Name = exportPrefix + field.Name
+			unexports = append(unexports, field.Name)
+		}
+	}
+	typ := reflect.StructOf(fields)
+	if len(unexports) > 0 {
+		unexportStructFieldMap[typ] = unexports
+	}
+	return typ
 }
 
 func toInterfaceType(ctx *blockCtx, v *ast.InterfaceType) iType {

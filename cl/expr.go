@@ -306,6 +306,13 @@ func compileCompositeLit(ctx *blockCtx, v *ast.CompositeLit) func() {
 				switch e := elt.(type) {
 				case *ast.KeyValueExpr:
 					fieldName := e.Key.(*ast.Ident).Name
+					if !ast.IsExported(fieldName) {
+						if flist, ok := unexportStructFieldMap[typStruct]; ok {
+							if flist.Contains(fieldName) {
+								fieldName = exportPrefix + fieldName
+							}
+						}
+					}
 					ctx.out.Push(fieldName)
 					field, _ := typStruct.FieldByName(fieldName)
 					typVal := field.Type
@@ -1073,6 +1080,14 @@ func compileSelectorExprLHS(ctx *blockCtx, v *ast.SelectorExpr, mode compileMode
 	case *goValue:
 		_, t := countPtr(vx.t)
 		name := v.Sel.Name
+		if !ast.IsExported(name) {
+			if flist, ok := unexportStructFieldMap[t]; ok {
+				if flist.Contains(name) {
+					name = exportPrefix + name
+				}
+			}
+		}
+
 		if sf, ok := t.FieldByName(name); ok {
 			checkType(sf.Type, in, ctx.out)
 			if ctx.fieldIndex == nil {
@@ -1148,6 +1163,13 @@ func compileSelectorExpr(ctx *blockCtx, v *ast.SelectorExpr, allowAutoCall bool)
 		n, t := countPtr(vx.t)
 		autoCall := false
 		name := v.Sel.Name
+		if !ast.IsExported(name) {
+			if flist, ok := unexportStructFieldMap[t]; ok {
+				if flist.Contains(name) {
+					name = exportPrefix + name
+				}
+			}
+		}
 		if sf, ok := t.FieldByName(name); ok {
 			ctx.infer.Ret(1, &goValue{t: sf.Type})
 			if ctx.fieldIndex == nil {
