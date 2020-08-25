@@ -187,6 +187,8 @@ func compileIdent(ctx *blockCtx, name string) func() {
 			return func() { // TODO: maybe slowly, use Closure instead of GoClosure
 				ctx.out.GoClosure(fn.fi)
 			}
+		case *typeDecl:
+			ctx.infer.Push(&nonValue{v})
 		default:
 			log.Panicln("compileIdent failed: unknown -", reflect.TypeOf(sym))
 		}
@@ -781,6 +783,9 @@ func compileCallExprCall(ctx *blockCtx, exprFun func(), v *ast.CallExpr, ct call
 				log.Panicf("%s requires function call, not conversion\n", gCallTypes[ct])
 			}
 			return compileTypeCast(nv, ctx, v)
+		case *typeDecl:
+			log.Printf("------------------------ %T\n", nv.Type)
+			return compileTypeCast(nv.Type, ctx, v)
 		}
 	}
 	log.Panicln("compileCallExpr failed: unknown -", reflect.TypeOf(fn))
@@ -1150,6 +1155,9 @@ func compileSelectorExpr(ctx *blockCtx, v *ast.SelectorExpr, allowAutoCall bool)
 		n, t := countPtr(vx.t)
 		autoCall := false
 		name := v.Sel.Name
+
+		log.Printf("govalue ---> %T\n", vx.t)
+
 		if sf, ok := t.FieldByName(name); ok {
 			ctx.infer.Ret(1, &goValue{t: sf.Type})
 			if ctx.fieldIndex == nil {

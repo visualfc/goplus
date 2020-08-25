@@ -288,6 +288,20 @@ func loadTypes(ctx *blockCtx, d *ast.GenDecl) {
 	}
 }
 
+type UserType struct {
+	reflect.Type
+	typ *typeDecl
+}
+
+func (t UserType) Kind() reflect.Kind {
+	return t.Type.Kind()
+}
+
+func (t UserType) String() string {
+	log.Println("---->", t.Type.Kind())
+	return t.typ.Name
+}
+
 func loadType(ctx *blockCtx, spec *ast.TypeSpec) {
 	if ctx.exists(spec.Name.Name) {
 		log.Panicln("loadType failed: symbol exists -", spec.Name.Name)
@@ -298,6 +312,11 @@ func loadType(ctx *blockCtx, spec *ast.TypeSpec) {
 
 	tDecl := &typeDecl{
 		Type: t,
+		Name: spec.Name.Name,
+	}
+	if t.Kind() != reflect.Struct {
+		tDecl.Type = &UserType{t, tDecl}
+		t = tDecl.Type
 	}
 	ctx.syms[spec.Name.Name] = tDecl
 	ctx.types[t] = tDecl
