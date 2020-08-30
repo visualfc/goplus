@@ -86,13 +86,23 @@ func Field(p *Builder, name string, typ reflect.Type, tag string, ellipsis bool)
 	return &ast.Field{Names: names, Type: typExpr, Tag: ftag}
 }
 
+func methodToField(p *Builder, m reflect.Method) *ast.Field {
+	var names []*ast.Ident
+	names = []*ast.Ident{Ident(m.Name)}
+	return &ast.Field{Names: names, Type: Type(p, m.Type)}
+}
+
 // Methods instr
-func Methods(p *Builder, typ reflect.Type) []*ast.Field {
+func Methods(p *Builder, typ reflect.Type) (fields []*ast.Field) {
 	n := typ.NumMethod()
 	if n == 0 {
 		return nil
 	}
-	panic("Methods: todo")
+	for i := 0; i < n; i++ {
+		fields = append(fields, methodToField(p, typ.Method(i)))
+	}
+	return
+	//panic("Methods: todo")
 }
 
 // InterfaceType instr

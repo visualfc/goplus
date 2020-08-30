@@ -232,11 +232,25 @@ func toStructType(ctx *blockCtx, v *ast.StructType) iType {
 	return reflect.StructOf(fields)
 }
 
+func toInterfaceMethod(ctx *blockCtx, field *ast.Field) (m reflect.Method) {
+	m.Name = field.Names[0].Name
+	m.Type = toType(ctx, field.Type).(reflect.Type)
+	c := m.Name[0]
+	if 'a' <= c && c <= 'z' || c == '_' {
+		m.PkgPath = ctx.pkg.Name
+	}
+	return
+}
+
 func toInterfaceType(ctx *blockCtx, v *ast.InterfaceType) iType {
-	methods := v.Methods.List
-	if methods == nil {
+	if v.Methods.List == nil {
 		return exec.TyEmptyInterface
 	}
+	var methods []reflect.Method
+	for _, field := range v.Methods.List {
+		methods = append(methods, toInterfaceMethod(ctx, field))
+	}
+	return reflect.InterfaceOf(methods)
 	panic("toInterfaceType: todo")
 }
 

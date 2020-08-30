@@ -244,7 +244,8 @@ func makeMap(typMap reflect.Type, arity int, p *Context) {
 func execTypeCast(i Instr, p *Context) {
 	args := p.GetArgs(1)
 	typ := getType(i&bitsOperand, p)
-	args[0] = reflect.ValueOf(args[0]).Convert(typ).Interface()
+	// args[0] = reflect.ValueOf(args[0]).Convert(typ).Interface()
+	args[0] = reflect.Convert(reflect.ValueOf(args[0]), typ).Interface()
 }
 
 const (

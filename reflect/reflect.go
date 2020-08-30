@@ -18,6 +18,7 @@
 package reflect
 
 import (
+	"log"
 	"reflect"
 )
 
@@ -76,12 +77,16 @@ type StructField = reflect.StructField
 // A StructTag is the tag string in a struct field.
 type StructTag = reflect.StructTag
 
+// Method represents a single method.
+type Method = reflect.Method
+
 // UserType is user-defined struct and type
 type UserType struct {
 	Type
-	elem  Type
-	key   Type
-	field []StructField
+	elem   Type
+	key    Type
+	field  []StructField
+	method []Method
 }
 
 func (t *UserType) Elem() Type {
@@ -96,6 +101,29 @@ func (t *UserType) Key() Type {
 		return t.key
 	}
 	return t.Type.Key()
+}
+
+func (t *UserType) NumMethod() int {
+	if t.method != nil {
+		return len(t.method)
+	}
+	return t.Type.NumMethod()
+}
+
+func (t *UserType) Method(i int) reflect.Method {
+	if t.method != nil {
+		return t.method[i]
+	}
+	return t.Type.Method(i)
+}
+
+func (t *UserType) MethodByName(name string) (reflect.Method, bool) {
+	for _, m := range t.method {
+		if m.Name == name {
+			return m, true
+		}
+	}
+	return t.Type.MethodByName(name)
 }
 
 func (t *UserType) FieldByName(name string) (sf StructField, ok bool) {
@@ -133,6 +161,11 @@ func (t *UserType) ConvertibleTo(u Type) bool {
 	return t.Type.ConvertibleTo(toType(u))
 }
 
+func (t *UserType) Implements(u Type) bool {
+	return t.Type.Implements(toType(u))
+	return true
+}
+
 func NewUserType(t Type) Type {
 	return &UserType{Type: t}
 }
@@ -164,6 +197,14 @@ func toTypes(typs []Type) []Type {
 func StructOf(fields []StructField) Type {
 	t := reflect.StructOf(fields)
 	return &UserType{Type: t, field: fields}
+}
+
+var (
+	emptyInterface = reflect.TypeOf((*interface{})(nil)).Elem()
+)
+
+func InterfaceOf(methods []Method) Type {
+	return &UserType{Type: emptyInterface, method: methods}
 }
 
 func PtrTo(t Type) Type {
@@ -268,6 +309,11 @@ func DeepEqual(x interface{}, y interface{}) bool {
 
 func ConvertibleTo(from Type, to Type) bool {
 	return toType(from).ConvertibleTo(toType(to))
+}
+
+func Convert(v Value, t Type) Value {
+	log.Println("--->", v, t.Kind())
+	return v.Convert(toType(t))
 }
 
 func Zero(t Type) Value {
