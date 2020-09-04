@@ -1167,6 +1167,11 @@ func compileSelectorExpr(ctx *blockCtx, v *ast.SelectorExpr, allowAutoCall bool)
 					pushConstVal(ctx.out, ret)
 				}
 			}
+			if typ, ok := nv.FindType(name); ok {
+				ctx.infer.Ret(1, &nonValue{typ})
+				return func() {
+				}
+			}
 			addr, kind, ok := nv.Find(name)
 			if !ok {
 				log.Panicln("compileSelectorExpr: not found -", nv.PkgPath(), name)
@@ -1247,7 +1252,7 @@ func compileSelectorExpr(ctx *blockCtx, v *ast.SelectorExpr, allowAutoCall bool)
 		if !ok {
 			log.Panicln("compileSelectorExpr: symbol not found -", v.Sel.Name)
 		}
-		pkgPath, fnname := normalizeMethod(n, t, name)
+		pkgPath, fnname := normalizeMethod(ctx, n, t, name)
 		pkg := ctx.FindGoPackage(pkgPath)
 		var addr uint32
 		var kind exec.SymbolKind
@@ -1312,8 +1317,25 @@ func countPtr(t reflect.Type) (int, reflect.Type) {
 	return n, t
 }
 
-func normalizeMethod(n int, t reflect.Type, name string) (pkgPath string, formalName string) {
+func findTypeName(ctx *blockCtx, t reflect.Type) string {
+	for k, v := range ctx.syms {
+		if tdecl, ok := v.(*typeDecl); ok {
+			if tdecl.Type == t {
+				return k
+			}
+		}
+	}
+	if ctx.parent != nil {
+		return findTypeName(ctx.parent, t)
+	}
+	return ""
+}
+
+func normalizeMethod(ctx *blockCtx, n int, t reflect.Type, name string) (pkgPath string, formalName string) {
 	typName := t.Name()
+	if typName == "" && reflect.IsUserType(t) {
+		typName = findTypeName(ctx, t)
+	}
 	if n > 0 {
 		typName = strings.Repeat("*", n) + typName
 	}

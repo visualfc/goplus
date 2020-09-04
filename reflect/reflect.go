@@ -18,7 +18,6 @@
 package reflect
 
 import (
-	"log"
 	"reflect"
 )
 
@@ -87,6 +86,7 @@ type UserType struct {
 	key    Type
 	field  []StructField
 	method []Method
+	name   *string
 }
 
 func (t *UserType) Elem() Type {
@@ -312,7 +312,6 @@ func ConvertibleTo(from Type, to Type) bool {
 }
 
 func Convert(v Value, t Type) Value {
-	log.Println("--->", v, t.Kind())
 	return v.Convert(toType(t))
 }
 
