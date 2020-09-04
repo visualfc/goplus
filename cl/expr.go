@@ -19,6 +19,8 @@ package cl
 import (
 	"strings"
 
+	"github.com/goplus/gop/exec/bytecode"
+
 	"github.com/goplus/gop/ast"
 	"github.com/goplus/gop/ast/astutil"
 	"github.com/goplus/gop/exec.spec"
@@ -48,6 +50,8 @@ func compileExprLHS(ctx *blockCtx, expr ast.Expr, mode compileMode) {
 		compileIndexExprLHS(ctx, v, mode)
 	case *ast.SelectorExpr:
 		compileSelectorExprLHS(ctx, v, mode)
+	case *ast.StarExpr:
+		compileStarExprLHS(ctx, v, mode)
 	default:
 		log.Panicln("compileExpr failed: unknown -", reflect.TypeOf(v))
 	}
@@ -89,6 +93,8 @@ func compileExpr(ctx *blockCtx, expr ast.Expr) func() {
 		return compileArrayType(ctx, v)
 	case *ast.Ellipsis:
 		return compileEllipsis(ctx, v)
+	case *ast.StarExpr:
+		return compileStarExpr(ctx, v)
 	case *ast.KeyValueExpr:
 		panic("compileExpr: ast.KeyValueExpr unexpected")
 	default:
@@ -116,7 +122,11 @@ func compileIdentLHS(ctx *blockCtx, name string, mode compileMode) {
 		typ := boundType(in.(iValue))
 		addr = ctx.insertVar(name, typ)
 	}
-	checkType(addr.getType(), in, ctx.out)
+	typ := addr.getType()
+	if ctx.indirect {
+		typ = typ.Elem()
+	}
+	checkType(typ, in, ctx.out)
 	ctx.infer.PopN(1)
 	if v, ok := addr.(*execVar); ok {
 		if mode == token.ASSIGN || mode == token.DEFINE {
@@ -128,7 +138,11 @@ func compileIdentLHS(ctx *blockCtx, name string, mode compileMode) {
 		}
 	} else {
 		if mode == token.ASSIGN || mode == token.DEFINE {
-			ctx.out.Store(addr.(*stackVar).index)
+			if ctx.indirect {
+				ctx.out.Load(addr.(*stackVar).index).AddrOp(kindOf(addr.(*stackVar).getType()), exec.OpAssign)
+			} else {
+				ctx.out.Store(addr.(*stackVar).index)
+			}
 		} else {
 			panic("compileIdentLHS: todo")
 		}
@@ -823,7 +837,9 @@ func compileIndexExprLHS(ctx *blockCtx, v *ast.IndexExpr, mode compileMode) {
 	}
 	exprX()
 	ctx.checkLoadAddr = false
-
+	if ctx.indirect {
+		typElem = typElem.Elem()
+	}
 	if cons, ok := val.(*constVal); ok {
 		cons.bound(typElem, ctx.out)
 	} else if t := val.(iValue).Type(); t != typElem && typElem.Kind() != reflect.Interface {
@@ -837,7 +853,11 @@ func compileIndexExprLHS(ctx *blockCtx, v *ast.IndexExpr, mode compileMode) {
 	case reflect.Slice, reflect.Array:
 		if cons, ok := i.(*constVal); ok {
 			n := boundConst(cons.v, exec.TyInt)
-			ctx.out.SetIndex(n.(int))
+			if ctx.indirect {
+				ctx.out.Index(n.(int)).AddrOp(kindOf(typElem), exec.OpAssign)
+			} else {
+				ctx.out.SetIndex(n.(int))
+			}
 			return
 		}
 		exprIdx()
@@ -848,7 +868,11 @@ func compileIndexExprLHS(ctx *blockCtx, v *ast.IndexExpr, mode compileMode) {
 				log.Panicln("compileIndexExprLHS: index expression value type is invalid")
 			}
 		}
-		ctx.out.SetIndex(-1)
+		if ctx.indirect {
+			ctx.out.Index(-1).AddrOp(kindOf(typElem), exec.OpAssign)
+		} else {
+			ctx.out.SetIndex(-1)
+		}
 	case reflect.Map:
 		exprIdx()
 		typIdx := typ.Key()
@@ -858,7 +882,11 @@ func compileIndexExprLHS(ctx *blockCtx, v *ast.IndexExpr, mode compileMode) {
 		if t := i.(iValue).Type(); t != typIdx {
 			logIllTypeMapIndexPanic(ctx, v, t, typIdx)
 		}
-		ctx.out.SetMapIndex()
+		if ctx.indirect {
+			ctx.out.MapIndex().AddrOp(kindOf(typElem), exec.OpAssign)
+		} else {
+			ctx.out.SetMapIndex()
+		}
 	default:
 		log.Panicln("compileIndexExprLHS: unknown -", typ)
 	}
@@ -1082,7 +1110,11 @@ func compileSelectorExprLHS(ctx *blockCtx, v *ast.SelectorExpr, mode compileMode
 		if t.PkgPath() != "" && ast.IsExported(name) || t.PkgPath() == "" {
 			if t.Kind() == reflect.Struct {
 				if sf, ok := t.FieldByName(name); ok {
-					checkType(sf.Type, in, ctx.out)
+					typ := sf.Type
+					if ctx.indirect {
+						typ = typ.Elem()
+					}
+					checkType(typ, in, ctx.out)
 					if ctx.fieldIndex == nil {
 						ctx.fieldStructType = vx.t
 					}
@@ -1095,7 +1127,11 @@ func compileSelectorExprLHS(ctx *blockCtx, v *ast.SelectorExpr, mode compileMode
 						exprX()
 					}
 					ctx.checkLoadAddr = false
-					ctx.out.StoreField(fieldStructType, fieldIndex)
+					if ctx.indirect {
+						ctx.out.LoadField(fieldStructType, fieldIndex).AddrOp(kindOf(typ), exec.OpAssign)
+					} else {
+						ctx.out.StoreField(fieldStructType, fieldIndex)
+					}
 				}
 			}
 		} else if t.PkgPath() != "" && !ast.IsExported(name) {
@@ -1105,6 +1141,12 @@ func compileSelectorExprLHS(ctx *blockCtx, v *ast.SelectorExpr, mode compileMode
 		log.Panicln("compileSelectorExprLHS failed: unknown -", reflect.TypeOf(vx))
 	}
 	_ = exprX
+}
+
+func compileStarExprLHS(ctx *blockCtx, v *ast.StarExpr, mode compileMode) {
+	ctx.indirect = true
+	compileExprLHS(ctx, v.X, mode)
+	ctx.indirect = false
 }
 
 func compileSelectorExpr(ctx *blockCtx, v *ast.SelectorExpr, allowAutoCall bool) func() {
@@ -1193,23 +1235,30 @@ func compileSelectorExpr(ctx *blockCtx, v *ast.SelectorExpr, allowAutoCall bool)
 			}
 		}
 
-		if _, ok := vx.t.MethodByName(name); !ok && isLower(name) {
+		method, ok := vx.t.MethodByName(name)
+		if !ok && isLower(name) {
 			name = strings.Title(name)
-			if _, ok = vx.t.MethodByName(name); ok {
+			method, ok = vx.t.MethodByName(name)
+			if ok {
 				v.Sel.Name = name
 				autoCall = allowAutoCall
-			} else {
-				log.Panicln("compileSelectorExpr: symbol not found -", v.Sel.Name)
 			}
 		}
-		pkgPath, method := normalizeMethod(n, t, name)
-		pkg := ctx.FindGoPackage(pkgPath)
-		if pkg == nil {
-			log.Panicln("compileSelectorExpr failed: package not found -", pkgPath)
-		}
-		addr, kind, ok := pkg.Find(method)
 		if !ok {
-			log.Panicln("compileSelectorExpr: method not found -", method)
+			log.Panicln("compileSelectorExpr: symbol not found -", v.Sel.Name)
+		}
+		pkgPath, fnname := normalizeMethod(n, t, name)
+		pkg := ctx.FindGoPackage(pkgPath)
+		var addr uint32
+		var kind exec.SymbolKind
+		var found bool
+		if pkg == nil {
+			pkg = bytecode.NewGoPackage(pkgPath)
+		} else {
+			addr, kind, found = pkg.Find(fnname)
+		}
+		if !found {
+			addr, kind = registerMethod(pkg, fnname, vx.t, name, method.Func, method.Type)
 		}
 		ctx.infer.Ret(1, newGoFunc(addr, kind, 1, ctx))
 		if autoCall { // change AST tree
@@ -1226,6 +1275,24 @@ func compileSelectorExpr(ctx *blockCtx, v *ast.SelectorExpr, allowAutoCall bool)
 		log.Panicln("compileSelectorExpr failed: unknown -", reflect.TypeOf(vx))
 	}
 	_ = exprX
+	return nil
+}
+
+func compileStarExpr(ctx *blockCtx, v *ast.StarExpr) func() {
+	exprX := compileExpr(ctx, v.X)
+	x := ctx.infer.Get(-1)
+	switch vx := x.(type) {
+	case *nonValue:
+	case *goValue:
+		if vx.Kind() == reflect.Ptr {
+			ctx.infer.Ret(1, &goValue{vx.t.Elem()})
+		}
+		return func() {
+			exprX()
+			ctx.out.AddrOp(kindOf(vx.t), exec.OpAddrVal)
+		}
+	}
+	log.Panicln("compileStarExpr failed: unknown -", reflect.TypeOf(x))
 	return nil
 }
 
@@ -1251,6 +1318,77 @@ func normalizeMethod(n int, t reflect.Type, name string) (pkgPath string, formal
 		typName = strings.Repeat("*", n) + typName
 	}
 	return t.PkgPath(), "(" + typName + ")." + name
+}
+
+func registerMethod(pkg exec.GoPackage, fnname string, t reflect.Type, name string, fun reflect.Value, typ reflect.Type) (addr uint32, kind exec.SymbolKind) {
+	var tin []reflect.Type
+	var fnInterface interface{}
+	isVariadic := typ.IsVariadic()
+	numIn := typ.NumIn()
+	numOut := typ.NumOut()
+	var arity int
+	if fun.IsValid() { // type method
+		tin = make([]reflect.Type, numIn)
+		for i := 0; i < numIn; i++ {
+			tin[i] = typ.In(i)
+		}
+		fnInterface = fun.Interface()
+		arity = numIn
+	} else { // interface method
+		tin = make([]reflect.Type, numIn+1)
+		tin[0] = t
+		for i := 1; i < numIn+1; i++ {
+			tin[i] = typ.In(i - 1)
+		}
+		tout := make([]reflect.Type, numOut)
+		for i := 0; i < numOut; i++ {
+			tout[i] = typ.Out(i)
+		}
+		typFunc := reflect.FuncOf(tin, tout, isVariadic)
+		fnInterface = reflect.Zero(typFunc).Interface()
+		arity = numIn + 1
+	}
+	fnExec := func(i int, p *bytecode.Context) {
+		if isVariadic {
+			arity = i
+		}
+		args := p.GetArgs(arity)
+		in := make([]reflect.Value, arity)
+		for i, arg := range args {
+			if arg != nil {
+				in[i] = reflect.ValueOf(arg)
+			} else if i >= numIn {
+				in[i] = reflect.Zero(tin[numIn-1])
+			} else {
+				in[i] = reflect.Zero(tin[i])
+			}
+		}
+		var out []reflect.Value
+		if fun.IsValid() {
+			out = fun.Call(in)
+		} else {
+			out = in[0].MethodByName(name).Call(in[1:])
+		}
+		if numOut > 0 {
+			iout := make([]interface{}, numOut)
+			for i := 0; i < numOut; i++ {
+				iout[i] = out[i].Interface()
+			}
+			p.Ret(arity, iout...)
+		}
+	}
+	if isVariadic {
+		info := pkg.(*bytecode.GoPackage).Funcv(fnname, fnInterface, fnExec)
+		base := pkg.(*bytecode.GoPackage).RegisterFuncvs(info)
+		addr = uint32(base)
+		kind = exec.SymbolFuncv
+	} else {
+		info := pkg.(*bytecode.GoPackage).Func(fnname, fnInterface, fnExec)
+		base := pkg.(*bytecode.GoPackage).RegisterFuncs(info)
+		addr = uint32(base)
+		kind = exec.SymbolFunc
+	}
+	return
 }
 
 // -----------------------------------------------------------------------------

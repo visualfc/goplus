@@ -20,6 +20,8 @@ import (
 	"math/big"
 	"testing"
 
+	"github.com/goplus/gop/exec/bytecode"
+
 	"github.com/goplus/gop/cl/cltest"
 )
 
@@ -742,6 +744,70 @@ func TestRational(t *testing.T) {
 	`).Equal(big.NewRat(7, 3))
 }
 
+func TestPkgInterfaceMethod(t *testing.T) {
+	cltest.Expect(t, `
+	import (
+		"reflect"
+	)
+	println(reflect.TypeOf("hello").Kind())
+	`,
+		"string\n",
+	)
+	cltest.Expect(t, `
+	import (
+		"reflect"
+	)
+	t := reflect.TypeOf(100)
+	println(t.ConvertibleTo(reflect.TypeOf(1.1)))
+	`,
+		"true\n",
+	)
+}
+
+type testDynamicI interface {
+	Printf(format string, a ...interface{})
+	Value() int
+	SetValue(i int)
+}
+
+type testDynamic struct {
+	v int
+}
+
+func (t *testDynamic) Printf(format string, a ...interface{}) {
+	fmt.Printf(format, a...)
+}
+
+func (t *testDynamic) Value() int {
+	return t.v
+}
+
+func (t *testDynamic) SetValue(i int) {
+	t.v = i
+}
+
+func (t *testDynamic) Interface() testDynamicI {
+	return t
+}
+
+func TestDynamicMethod(t *testing.T) {
+	I := bytecode.NewGoPackage("test_dynamic_method")
+	v := &testDynamic{100}
+	I.RegisterVars(I.Var("V", &v))
+	cltest.Expect(t, `
+	import (
+		"test_dynamic_method"
+	)
+	v := test_dynamic_method.V
+	println(v.Value())
+	v.Printf("test %v,%v,%v\n",100,200,v)
+	v.SetValue(200)
+	println(v.value,v.Interface().value)
+	`,
+		"100\ntest 100,200,&{100}\n200 200\n",
+	)
+}
+
 type testData struct {
 	clause string
 	want   string
@@ -1094,6 +1160,118 @@ func TestMethodCases(t *testing.T) {
 }
 
 // -----------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
+var testStarExprClauses = map[string]testData{
+	"star expr": {`
+				func A(a *int, c *struct {
+					b *int
+					m map[string]*int
+					s []*int
+				}) {
+					*a = 5
+					*c.b = 3
+					*c.m["foo"] = 7
+					*c.s[0] = 9
+				}
+
+				a1 := 6
+				a2 := 6
+				a3 := 6
+				c := struct {
+					b *int
+					m map[string]*int
+					s []*int
+				}{
+					b: &a1,
+					m: map[string]*int{
+						"foo": &a2,
+					},
+					s: []*int{&a3},
+				}
+				A(&a1, &c)
+				*c.m["foo"] = 8
+				*c.s[0] = 10
+				*c.s[0+0] = 10
+				println(a1, *c.b, *c.m["foo"], *c.s[0], *c.s[0+0])
+
+					`, "3 3 8 10 10\n", false},
+	"star expr exec": {`
+					func A(a *int, c *struct {
+						b *int
+						m map[string]*int
+						s []*int
+					}) {
+						*a = 5
+						*c.b = 3
+						*c.m["foo"] = 7
+						*c.s[0] = 9
+					}
+	
+					func main() {
+						a1 := 6
+						a2 := 6
+						a3 := 6
+						c := struct {
+							b *int
+							m map[string]*int
+							s []*int
+						}{
+							b: &a1,
+							m: map[string]*int{
+								"foo": &a2,
+							},
+							s: []*int{&a3},
+						}
+						A(&a1, &c)
+						*c.m["foo"] = 8
+						*c.s[0] = 10
+						*c.s[0+0] = 10
+						println(a1, *c.b, *c.m["foo"], *c.s[0], *c.s[0+0])
+					}
+						`, "3 3 8 10 10\n", false},
+	"star expr lhs slice index func": {`
+					func A(a *int, c *struct {
+						b *int
+						m map[string]*int
+						s []*int
+					}) {
+						*a = 5
+						*c.b = 3
+						*c.m["foo"] = 7
+						*c.s[0] = 9
+					}
+					
+					func Index() int {
+						return 0
+					}
+					
+					a1 := 6
+					a2 := 6
+					a3 := 6
+					c := struct {
+						b *int
+						m map[string]*int
+						s []*int
+					}{
+						b: &a1,
+						m: map[string]*int{
+							"foo": &a2,
+						},
+						s: []*int{&a3},
+					}
+					A(&a1, &c)
+					*c.m["foo"] = 8
+					*c.s[0] = 10
+					*c.s[Index()] = 11
+					println(a1, *c.b, *c.m["foo"], *c.s[0])
+	
+						`, "3 3 8 11\n", false},
+}
+
+func TestStarExpr(t *testing.T) {
+	testScripts(t, "TestStarExpr", testStarExprClauses)
+}
 
 func testScripts(t *testing.T, testName string, scripts map[string]testData) {
 	for name, script := range scripts {

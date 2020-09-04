@@ -119,6 +119,8 @@ func isNoExecCtxExpr(ctx *blockCtx, expr ast.Expr) bool {
 		return isNoExecCtxListComprehensionExpr(ctx, v)
 	case *ast.MapComprehensionExpr:
 		return isNoExecCtxMapComprehensionExpr(ctx, v)
+	case *ast.StarExpr:
+		return isNoExecCtxStarExpr(ctx, v)
 	case *ast.ArrayType:
 		return true
 	case *ast.Ellipsis:
@@ -255,6 +257,13 @@ func isNoExecCtx2nd(ctx *blockCtx, a, b ast.Expr) bool {
 	return isNoExecCtxExpr(ctx, b)
 }
 
+func isNoExecCtxStarExpr(ctx *blockCtx, v *ast.StarExpr) bool {
+	if noExecCtx := isNoExecCtxExpr(ctx, v.X); !noExecCtx {
+		return false
+	}
+	return true
+}
+
 func isNoExecCtxCallExpr(ctx *blockCtx, v *ast.CallExpr) bool {
 	switch expr := v.Fun.(type) {
 	case *ast.Ident:
@@ -356,6 +365,8 @@ func isNoExecCtxExprLHS(ctx *blockCtx, expr ast.Expr, mode compileMode) bool {
 		return isNoExecCtxIndexExprLHS(ctx, v, mode)
 	case *ast.SelectorExpr:
 		return isNoExecCtxSelectorExprLHS(ctx, v, mode)
+	case *ast.StarExpr:
+		return isNoExecCtxStarExprLHS(ctx, v, mode)
 	default:
 		log.Panicln("isNoExecCtxExprLHS failed: unknown -", reflect.TypeOf(v))
 	}
@@ -377,6 +388,13 @@ func isNoExecCtxIdentLHS(ctx *blockCtx, name string, mode compileMode) bool {
 }
 
 func isNoExecCtxSelectorExprLHS(ctx *blockCtx, v *ast.SelectorExpr, mode compileMode) bool {
+	if noExecCtx := isNoExecCtxExpr(ctx, v.X); !noExecCtx {
+		return false
+	}
+	return true
+}
+
+func isNoExecCtxStarExprLHS(ctx *blockCtx, v *ast.StarExpr, mode compileMode) bool {
 	if noExecCtx := isNoExecCtxExpr(ctx, v.X); !noExecCtx {
 		return false
 	}
