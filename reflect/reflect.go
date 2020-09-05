@@ -86,7 +86,25 @@ type UserType struct {
 	key    Type
 	field  []StructField
 	method []Method
+	in     []Type
+	out    []Type
 	name   *string
+}
+
+func (t *UserType) NumIn() int {
+	return len(t.in)
+}
+
+func (t *UserType) In(i int) Type {
+	return t.in[i]
+}
+
+func (t *UserType) NumOut() int {
+	return len(t.out)
+}
+
+func (t *UserType) Out(i int) Type {
+	return t.out[i]
 }
 
 func (t *UserType) Elem() Type {
@@ -162,8 +180,7 @@ func (t *UserType) ConvertibleTo(u Type) bool {
 }
 
 func (t *UserType) Implements(u Type) bool {
-	return t.Type.Implements(toType(u))
-	return true
+	return Implements(t, u)
 }
 
 func NewUserType(t Type) Type {
@@ -215,7 +232,7 @@ func PtrTo(t Type) Type {
 }
 
 func FuncOf(in, out []Type, variadic bool) Type {
-	return reflect.FuncOf(toTypes(in), toTypes(out), variadic)
+	return &UserType{Type: reflect.FuncOf(toTypes(in), toTypes(out), variadic), in: in, out: out}
 }
 
 func SliceOf(t Type) Type {
@@ -313,6 +330,61 @@ func ConvertibleTo(from Type, to Type) bool {
 
 func Convert(v Value, t Type) Value {
 	return v.Convert(toType(t))
+}
+
+func equalTypeMethod(t Type, u Type) bool {
+	if t.NumIn() != u.NumIn()+1 {
+		return false
+	}
+	if t.NumOut() != u.NumOut() {
+		return false
+	}
+	for i := 0; i < u.NumIn(); i++ {
+		if t.In(i+1) != u.In(i) {
+			return false
+		}
+	}
+	for i := 0; i < u.NumOut(); i++ {
+		if t.Out(i) != u.Out(i) {
+			return false
+		}
+	}
+	return true
+}
+
+func Implements(t Type, u Type) bool {
+	if u.Kind() != Interface {
+		return false
+	}
+	if EqualType(t, u) {
+		return true
+	}
+	tcount := t.NumMethod()
+	ucount := u.NumMethod()
+	if t.Kind() == reflect.Interface {
+		i := 0
+		for j := 0; j < tcount; j++ {
+			tm := t.Method(j)
+			um := u.Method(i)
+			if tm.Name == um.Name && EqualType(tm.Type, um.Type) {
+				if i++; i >= ucount {
+					return true
+				}
+			}
+		}
+	} else {
+		i := 0
+		for j := 0; j < tcount; j++ {
+			tm := t.Method(j)
+			um := u.Method(i)
+			if tm.Name == um.Name && equalTypeMethod(tm.Type, um.Type) {
+				if i++; i >= ucount {
+					return true
+				}
+			}
+		}
+	}
+	return false
 }
 
 func Zero(t Type) Value {

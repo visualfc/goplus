@@ -147,7 +147,7 @@ func checkType(t reflect.Type, v interface{}, b exec.Builder) {
 		}
 		typVal := iv.Type()
 		if kind := t.Kind(); kind == reflect.Interface {
-			if !typVal.Implements(t) {
+			if !reflect.Implements(typVal, t) {
 				log.Panicf("checkType: type `%v` doesn't implments interface `%v`", typVal, t)
 			}
 		} else if !reflect.EqualType(t, typVal) {

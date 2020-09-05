@@ -17,6 +17,7 @@
 package cl
 
 import (
+	"sort"
 	"strconv"
 
 	"github.com/goplus/gop/ast"
@@ -250,8 +251,10 @@ func toInterfaceType(ctx *blockCtx, v *ast.InterfaceType) iType {
 	for _, field := range v.Methods.List {
 		methods = append(methods, toInterfaceMethod(ctx, field))
 	}
+	sort.Slice(methods, func(i, j int) bool {
+		return methods[i].Name < methods[j].Name
+	})
 	return reflect.InterfaceOf(methods)
-	panic("toInterfaceType: todo")
 }
 
 func toExternalType(ctx *blockCtx, v *ast.SelectorExpr) iType {

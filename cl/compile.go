@@ -300,6 +300,7 @@ func loadType(ctx *blockCtx, spec *ast.TypeSpec) {
 	ctx.out.DefineType(t, spec.Name.Name)
 
 	tDecl := &typeDecl{
+		Name: spec.Name.Name,
 		Type: t,
 	}
 	ctx.syms[spec.Name.Name] = tDecl
