@@ -1335,7 +1335,6 @@ func normalizeMethod(ctx *blockCtx, n int, t reflect.Type, name string) (pkgPath
 	typName := t.Name()
 	if typName == "" && reflect.IsUserType(t) {
 		typName = findTypeName(ctx, t)
-		log.Println("-------->", typName)
 	}
 	if n > 0 {
 		typName = strings.Repeat("*", n) + typName

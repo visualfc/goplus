@@ -88,7 +88,6 @@ type UserType struct {
 	method []Method
 	in     []Type
 	out    []Type
-	name   *string
 }
 
 func (t *UserType) NumIn() int {
