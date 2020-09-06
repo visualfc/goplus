@@ -22,6 +22,7 @@ import (
 	"errors"
 	"fmt"
 	"path"
+	"sort"
 	"syscall"
 
 	"github.com/goplus/gop/ast"
@@ -257,6 +258,19 @@ func loadFile(ctx *blockCtx, f *ast.File) {
 			}
 		default:
 			log.Panicln("gopkg.Package.load: unknown decl -", reflect.TypeOf(decl))
+		}
+	}
+
+	for k, v := range ctx.types {
+		if k.Kind() == reflect.Struct && reflect.IsUserType(k) {
+			var methods []reflect.Method
+			for name, fun := range v.Methods {
+				methods = append(methods, reflect.Method{Name: name, Type: fun.Type()})
+			}
+			sort.Slice(methods, func(i int, j int) bool {
+				return methods[i].Name < methods[j].Name
+			})
+			reflect.SetMethods(k, methods)
 		}
 	}
 }

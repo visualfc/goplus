@@ -1263,7 +1263,7 @@ func compileSelectorExpr(ctx *blockCtx, v *ast.SelectorExpr, allowAutoCall bool)
 			addr, kind, found = pkg.Find(fnname)
 		}
 		if !found {
-			addr, kind = registerMethod(pkg, fnname, vx.t, name, method.Func, method.Type)
+			addr, kind = registerMethod(ctx, pkg, fnname, vx.t, name, method.Func, method.Type)
 		}
 		ctx.infer.Ret(1, newGoFunc(addr, kind, 1, ctx))
 		if autoCall { // change AST tree
@@ -1342,7 +1342,7 @@ func normalizeMethod(ctx *blockCtx, n int, t reflect.Type, name string) (pkgPath
 	return t.PkgPath(), "(" + typName + ")." + name
 }
 
-func registerMethod(pkg exec.GoPackage, fnname string, t reflect.Type, name string, fun reflect.Value, typ reflect.Type) (addr uint32, kind exec.SymbolKind) {
+func registerMethod(ctx *blockCtx, pkg exec.GoPackage, fnname string, t reflect.Type, name string, fun reflect.Value, typ reflect.Type) (addr uint32, kind exec.SymbolKind) {
 	var tin []reflect.Type
 	var fnInterface interface{}
 	isVariadic := typ.IsVariadic()

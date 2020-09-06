@@ -182,6 +182,14 @@ func (t *UserType) Implements(u Type) bool {
 	return Implements(t, u)
 }
 
+func SetMethods(t reflect.Type, methods []Method) bool {
+	if ut, ok := t.(*UserType); ok && ut.Kind() == reflect.Struct {
+		ut.method = methods
+		return true
+	}
+	return false
+}
+
 func NewUserType(t Type) Type {
 	return &UserType{Type: t}
 }
@@ -352,14 +360,23 @@ func equalTypeMethod(t Type, u Type) bool {
 }
 
 func Implements(t Type, u Type) bool {
-	if u.Kind() != Interface {
-		return false
+	if u == nil {
+		panic("reflect: nil type passed to Type.Implements")
 	}
-	if EqualType(t, u) {
+	if u.Kind() != Interface {
+		panic("reflect: non-interface type passed to Type.Implements")
+	}
+	if t.Kind() == Ptr {
+		t = t.Elem()
+	}
+	// if t.Kind() != Interface && !IsUserType(u) {
+	// 	//	return toType(t).Implements(u)
+	// }
+	ucount := u.NumMethod()
+	if ucount == 0 {
 		return true
 	}
 	tcount := t.NumMethod()
-	ucount := u.NumMethod()
 	if t.Kind() == reflect.Interface {
 		i := 0
 		for j := 0; j < tcount; j++ {
