@@ -36,10 +36,11 @@ type varScope struct {
 type Context struct {
 	Stack
 	varScope
-	code   *Code
-	defers *theDefer
-	ip     int
-	base   int
+	code     *Code
+	defers   *theDefer
+	ip       int
+	base     int
+	irecover interface{}
 }
 
 func newSimpleContext(data []interface{}) *Context {
@@ -137,8 +138,24 @@ func (ctx *Context) Run() {
 	ctx.Exec(0, ctx.code.Len())
 }
 
+func (ctx *Context) checkRecover() {
+	if ctx.irecover != nil {
+		if ctx.parent == nil {
+			panic(ctx.irecover)
+		}
+	}
+}
+
 // Exec executes a code block from ip to ipEnd.
 func (ctx *Context) Exec(ip, ipEnd int) (currentIP int) {
+	defer func() {
+		if ctx.irecover == nil {
+			if v := recover(); v != nil {
+				ctx.irecover = v
+				log.Printf("---> %p %v\n", ctx, ctx.irecover)
+			}
+		}
+	}()
 	const allowProfile = true
 	var lastInstr Instr
 	var start time.Time

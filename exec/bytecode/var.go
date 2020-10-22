@@ -87,6 +87,8 @@ const (
 	GobImag = exec.GobImag
 	// GobClose - close: 8
 	GobClose = exec.GobClose
+	// GobRecover - recover: 9
+	GobRecover = exec.GobRecover
 )
 
 // -----------------------------------------------------------------------------
@@ -158,6 +160,9 @@ func execGoBuiltin(i Instr, p *Context) {
 		} else {
 			p.data[n-1] = real(p.data[n-1].(complex128))
 		}
+	case GobRecover:
+		p.Push(p.irecover)
+		p.irecover = nil
 	default:
 		log.Panicln("execGoBuiltin: todo -", op)
 	}

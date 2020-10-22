@@ -390,7 +390,17 @@ func igoClose(ctx *blockCtx, v *ast.CallExpr, ct callType) func() {
 
 // func recover() interface{}
 func igoRecover(ctx *blockCtx, v *ast.CallExpr, ct callType) func() {
-	panic("todo")
+	if ct != callExpr {
+		log.Panicf("%s discards result of %s\n", gCallTypes[ct], ctx.code(v))
+	}
+	if len(v.Args) != 0 {
+		log.Panicln("too many arguments to recover", ctx.code(v))
+	}
+	typ := exec.TyEmptyInterface
+	ctx.infer.Push(&goValue{typ})
+	return func() {
+		ctx.out.GoBuiltin(typ, exec.GobRecover)
+	}
 }
 
 func compileTypeCast(typ reflect.Type, ctx *blockCtx, v *ast.CallExpr) func() {

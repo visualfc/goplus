@@ -294,6 +294,10 @@ func (p *FuncInfo) Type() reflect.Type {
 	return p.t
 }
 
+func (p *FuncInfo) call(ctx *Context) {
+	ctx.Exec(p.funEntry, p.funEnd)
+}
+
 func (p *FuncInfo) execFunc(ctx *Context) {
 	oldDefers := ctx.defers
 	ctx.defers = nil
@@ -301,7 +305,7 @@ func (p *FuncInfo) execFunc(ctx *Context) {
 		ctx.execDefers()
 		ctx.defers = oldDefers
 	}()
-	ctx.Exec(p.funEntry, p.funEnd)
+	p.call(ctx)
 	if ctx.ip == ipReturnN { // TODO: optimize
 		if ctx.defers != nil {
 			ctx.ip = ipInvalid

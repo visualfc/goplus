@@ -40,6 +40,7 @@ func (ctx *Context) execDefers() {
 		execTable[d.i>>bitsOpShift](d.i, ctx)
 		d = d.next
 	}
+	ctx.checkRecover()
 }
 
 func execDefer(i Instr, ctx *Context) {
