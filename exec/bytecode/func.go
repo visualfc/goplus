@@ -305,7 +305,15 @@ func (p *FuncInfo) execFunc(ctx *Context) {
 		ctx.execDefers()
 		ctx.defers = oldDefers
 	}()
-	p.call(ctx)
+	func() {
+		defer func() {
+			if v := recover(); v != nil {
+				ctx.irecover = v
+				log.Printf("---> recover %p %v fn:%v", ctx, ctx.irecover, p.name)
+			}
+		}()
+		ctx.Exec(p.funEntry, p.funEnd)
+	}()
 	if ctx.ip == ipReturnN { // TODO: optimize
 		if ctx.defers != nil {
 			ctx.ip = ipInvalid

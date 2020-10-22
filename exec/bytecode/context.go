@@ -135,27 +135,28 @@ func (ctx *Context) getScope(local bool) *varScope {
 // Run executes the code.
 func (ctx *Context) Run() {
 	defer ctx.execDefers()
-	ctx.Exec(0, ctx.code.Len())
+	func() {
+		defer func() {
+			if v := recover(); v != nil {
+				ctx.irecover = v
+				log.Printf("---> recover top %p %v", ctx, ctx.irecover)
+			}
+		}()
+		ctx.Exec(0, ctx.code.Len())
+	}()
 }
 
 func (ctx *Context) checkRecover() {
-	if ctx.irecover != nil {
-		if ctx.parent == nil {
-			panic(ctx.irecover)
-		}
+	if ctx.irecover != nil && ctx.parent == nil {
+		v := ctx.irecover
+		ctx.irecover = nil
+		log.Println("-> check recover", ctx.irecover)
+		panic(v)
 	}
 }
 
 // Exec executes a code block from ip to ipEnd.
 func (ctx *Context) Exec(ip, ipEnd int) (currentIP int) {
-	defer func() {
-		if ctx.irecover == nil {
-			if v := recover(); v != nil {
-				ctx.irecover = v
-				log.Printf("---> %p %v\n", ctx, ctx.irecover)
-			}
-		}
-	}()
 	const allowProfile = true
 	var lastInstr Instr
 	var start time.Time
