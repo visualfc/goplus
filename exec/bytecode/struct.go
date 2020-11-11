@@ -198,17 +198,21 @@ func toType(typ reflect.Type) reflect.Type {
 		structType := toType(temp)
 		return reflect.PtrTo(structType)
 	}
-	// if typ.Kind() == reflect.Struct && typ.Name() == "" {
-	// 	var fields = make([]StructField, 0, typ.NumField())
-	// 	for i := 0; i < typ.NumField(); i++ {
-	// 		field := typ.Field(i)
-	// 		fields = append(fields, StructField{
-	// 			Type: toType(field.Type),
-	// 			Name: "Q" + field.Name,
-	// 		})
-	// 	}
-
-	// 	typ = Struct(fields).Type()
-	// }
+	if typ.Kind() == reflect.Slice {
+		return reflect.SliceOf(toType(typ.Elem()))
+	}
+	if typ.Kind() == reflect.Struct && typ.Name() == "" {
+		var fields = make([]StructField, 0, typ.NumField())
+		for i := 0; i < typ.NumField(); i++ {
+			field := typ.Field(i)
+			fields = append(fields, StructField{
+				Type:      field.Type,
+				Name:      field.Name,
+				PkgPath:   field.PkgPath,
+				Anonymous: false, // field.Anonymous,
+			})
+		}
+		typ = Struct(fields).Type()
+	}
 	return typ
 }
