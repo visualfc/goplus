@@ -310,28 +310,6 @@ func (p *varManager) addVars(vars ...exec.Var) {
 	}
 }
 
-func toType(typ reflect.Type) reflect.Type {
-	if typ.Kind() == reflect.Ptr {
-		temp := typ.Elem()
-		structType := toType(temp)
-		return reflect.PtrTo(structType)
-	}
-
-	if typ.Kind() == reflect.Struct && typ.Name() == "" {
-		var fields = make([]StructField, 0, typ.NumField())
-		for i := 0; i < typ.NumField(); i++ {
-			field := typ.Field(i)
-			fields = append(fields, StructField{
-				Type: toType(field.Type),
-				Name: "Q" + field.Name,
-			})
-		}
-
-		typ = Struct(fields).Type()
-	}
-	return typ
-}
-
 type blockCtx struct {
 	varManager
 	parent *varManager
