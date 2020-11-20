@@ -1,3 +1,5 @@
+// +build cl
+
 /*
  Copyright 2020 The GoPlus Authors (goplus.org)
 

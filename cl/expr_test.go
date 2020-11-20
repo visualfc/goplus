@@ -13,6 +13,7 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 */
+
 package cl_test
 
 import (
@@ -400,6 +401,49 @@ func TestTypeCast(t *testing.T) {
 	x := []byte("hello")
 	x
 	`).Equal([]byte("hello"))
+}
+
+func TestTypeCast2(t *testing.T) {
+	cltest.Expect(t, `
+	type M int
+	func (m M) Foo() {
+		println("foo",m)
+	}
+	m := M(10)
+	m.Foo()
+	`, "foo 10\n")
+	cltest.Expect(t, `
+	type Point struct {
+	}
+	type M int
+	func (m M) Foo() {
+		println("foo",m)
+	}
+	m := M(&Point{})
+	`, "", nil)
+}
+
+func TestDiffrentType(t *testing.T) {
+	cltest.Expect(t, `
+	type Pt1 struct {
+		X int
+		Y int
+	}
+	func (p *Pt1) Test() {
+		println("pt1", p)
+	}
+	type Pt2 struct {
+		X int
+		Y int
+	}
+	func (p *Pt2) Test() {
+		println("pt2",p)
+	}
+	pt1 := Pt1{10,20}
+	pt2 := Pt2{1,2}
+	pt1.Test()
+	pt2.Test()
+	`, "pt1 &{10 20}\npt2 &{1 2}\n")
 }
 
 func TestAppendErr(t *testing.T) {

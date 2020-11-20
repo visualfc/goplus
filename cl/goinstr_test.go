@@ -1,3 +1,5 @@
+// +build cl
+
 package cl
 
 import (
