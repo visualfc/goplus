@@ -115,7 +115,7 @@ func checkGoPkgList(pkgPath string, srcDir string, allpkgs bool) (pkgs []*jsonPa
 		spkg += "/..."
 	}
 	cmd := exec.Command(gobin, "list", "-json", spkg)
-	cmd.Dir = srcDir
+	//cmd.Dir = srcDir
 	data, err := cmd.CombinedOutput()
 	if err != nil {
 		if rpkg, err := checkGoPkg(srcDir); err == nil {
