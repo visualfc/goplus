@@ -211,7 +211,9 @@ func execIndex(i Instr, p *Context) {
 	switch (i >> bitsOpIndexShift) & ((1 << bitsIndexOp) - 1) {
 	case indexOpGet: // sliceData $idx $getIndex
 		p.data[n-1] = v.Interface()
+		log.Println("------> GetIndex", idx, v, p.data[n-1])
 	case indexOpSet: // value sliceData $idx $setIndex
+		log.Println("------> SetIndex", idx, v, p.data[n-2])
 		setValue(v, p.data[n-2])
 		p.PopN(2)
 	case indexOpAddr: // sliceData $idx $setIndex

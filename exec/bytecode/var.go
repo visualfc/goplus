@@ -207,6 +207,7 @@ func execAddrVar(i Instr, p *Context) {
 func execLoadVar(i Instr, p *Context) {
 	idx := i & bitsOperand
 	if idx <= bitsOpVarOperand {
+		log.Println("---------", p.getVar(idx))
 		p.Push(p.getVar(idx))
 		return
 	}
