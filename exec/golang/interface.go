@@ -537,4 +537,16 @@ func (p *iBuilder) EndBlock() exec.Builder {
 	return p
 }
 
+// DefineForBlock
+func (p *iBuilder) DefineForBlock() exec.Builder {
+	((*Builder)(p)).DefineBlock()
+	return p
+}
+
+// EndForBlock
+func (p *iBuilder) EndForBlock() exec.Builder {
+	((*Builder)(p)).EndBlock()
+	return p
+}
+
 // -----------------------------------------------------------------------------
