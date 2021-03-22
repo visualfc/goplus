@@ -392,6 +392,12 @@ type Builder interface {
 	// EndBlock instr
 	EndBlock() Builder
 
+	// DefineForBlock instr
+	DefineForBlock() Builder
+
+	// EndForBlock instr
+	EndForBlock() Builder
+
 	// Send instr
 	Send() Builder
 
