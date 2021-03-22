@@ -331,14 +331,14 @@ func ToValues(args []interface{}) []reflect.Value {
 
 // -----------------------------------------------------------------------------
 
-type BlockInfo struct {
+type ForBlock struct {
 	end    int
 	offset int
 }
 
-func execBlock(i Instr, p *Context) {
+func execForBlock(i Instr, p *Context) {
 	addr := (i & bitsOperand)
-	b := p.code.blocks[addr]
+	b := p.code.forBlocks[addr]
 	if b.offset == len(p.vars) {
 		return
 	}
@@ -351,19 +351,21 @@ func execBlock(i Instr, p *Context) {
 	p.blockScope = p.blockScope[:len(p.blockScope)-1]
 }
 
-func (p *Builder) DefineBlock() {
-	b := &BlockInfo{}
+// DefineForBlock represents a for body start
+func (p *Builder) DefineForBlock() {
+	b := &ForBlock{}
 	b.offset = len(p.varManager.vlist)
 	code := p.code
-	addr := uint32(len(code.blocks))
-	code.blocks = append(code.blocks, b)
-	code.data = append(code.data, (opBlock<<bitsOpShift)|addr)
-	p.iblock = len(code.blocks) - 1
+	addr := uint32(len(code.forBlocks))
+	code.forBlocks = append(code.forBlocks, b)
+	code.data = append(code.data, (opForBlock<<bitsOpShift)|addr)
+	p.iForBlock = len(code.forBlocks) - 1
 }
 
-func (p *Builder) EndBlock() {
-	p.code.blocks[p.iblock].end = len(p.code.data)
-	p.iblock--
+// EndForBlock represents a for body end
+func (p *Builder) EndForBlock() {
+	p.code.forBlocks[p.iForBlock].end = len(p.code.data)
+	p.iForBlock--
 }
 
 // ForPhrase represents a for range phrase.

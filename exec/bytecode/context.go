@@ -267,7 +267,7 @@ var _execTable = [...]func(i Instr, p *Context){
 	opStruct:        execStruct,
 	opSend:          execSend,
 	opRecv:          execRecv,
-	opBlock:         execBlock,
+	opForBlock:      execForBlock,
 }
 
 var execTable []func(i Instr, p *Context)
