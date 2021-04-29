@@ -187,16 +187,16 @@ type blockCtx struct {
 	file            *fileCtx
 	parent          *blockCtx
 	syms            map[string]iSymbol
-	noExecCtx       bool
-	takeAddr        bool
-	indirect        bool
-	checkFlag       bool
-	checkLoadAddr   bool
 	fieldStructType reflect.Type
 	fieldIndex      []int
 	fieldExprX      func()
+	indirect        int
 	underscore      int
 	mtypeList       []*MethodType
+	noExecCtx       bool
+	takeAddr        bool
+	checkFlag       bool
+	checkLoadAddr   bool
 }
 
 // function block ctx
