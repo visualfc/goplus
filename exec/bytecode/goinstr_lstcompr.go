@@ -195,19 +195,19 @@ func execTypeMethod(i Instr, p *Context) {
 	ms := p.code.typeMethods[typ]
 	for i := 0; i < len(ms); i++ {
 		m := ms[i]
+		numIn := m.Info.NumIn()
 		numOut := m.Info.NumOut()
 		if m.Info.IsVariadic() {
 			m.Func = func(args []reflect.Value) (out []reflect.Value) {
-				for n, arg := range args {
-					if n == len(args)-1 {
-						p.data = append(p.data, arg.Index(0).Interface())
-					} else {
-						p.data = append(p.data, arg.Interface())
-					}
+				for _, arg := range args {
+					p.data = append(p.data, arg.Interface())
 				}
-				p.Call(m.Info)
+				p.Callv(m.Info, uint32(numIn-1))
 				for i := 0; i < numOut; i++ {
 					out = append(out, reflect.ValueOf(p.Get(i-numOut)))
+				}
+				if numOut > 0 {
+					p.data = p.data[:len(p.data)-numOut]
 				}
 				return
 			}
@@ -219,6 +219,9 @@ func execTypeMethod(i Instr, p *Context) {
 				p.Call(m.Info)
 				for i := 0; i < numOut; i++ {
 					out = append(out, reflect.ValueOf(p.Get(i-numOut)))
+				}
+				if numOut > 0 {
+					p.data = p.data[:len(p.data)-numOut]
 				}
 				return
 			}

@@ -21,8 +21,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/goplus/reflectx"
-
 	"github.com/goplus/gop/ast"
 	"github.com/goplus/gop/ast/astutil"
 	"github.com/goplus/gop/constant"
@@ -156,7 +154,6 @@ func compileInterfaceType(ctx *blockCtx, v *ast.InterfaceType) func() {
 
 func compileStructType(ctx *blockCtx, v *ast.StructType) func() {
 	typ := toStructType(ctx, v).(reflect.Type)
-	typ = reflectx.MethodOf(typ, nil)
 	ctx.infer.Push(&nonValue{typ})
 	return nil
 }
@@ -957,33 +954,10 @@ func compileCallExprCall(ctx *blockCtx, exprFun func(), v *ast.CallExpr, ct call
 			ctx.infer.Push(ret)
 		}
 		return func() {
-			var isMethod int
-			if vfn.recv != nil {
-				isMethod = 1
-				exprX := compileExpr(ctx, v.Fun.(*ast.SelectorExpr).X)
-				recv := ctx.infer.Get(-1).(*goValue)
-
-				if astutil.ToRecv(vfn.recv).Pointer == 0 {
-					exprX()
-					if recv.Kind() == reflect.Ptr {
-						recv.t = recv.t.Elem()
-						ctx.infer.Ret(1, recv)
-						ctx.out.AddrOp(recv.t.Kind(), exec.OpAddrVal) // Ptr => Elem()
-					}
-				} else {
-					ctx.checkLoadAddr = true
-					exprX()
-					ctx.checkLoadAddr = false
-					if recv.Kind() != reflect.Ptr {
-						recv.t = reflect.PtrTo(recv.t)
-						ctx.infer.Ret(1, recv)
-					}
-				}
-			}
 			for _, arg := range v.Args {
 				compileExpr(ctx, arg)()
 			}
-			arity := checkFuncCall(vfn.Proto(), isMethod, v, ctx)
+			arity := checkFuncCall(vfn.Proto(), 0, v, ctx)
 			fun := vfn.FuncInfo()
 			if fun.IsVariadic() {
 				builder(ctx, ct).CallFuncv(fun, len(v.Args), arity)
@@ -1743,20 +1717,6 @@ func compileSelectorExpr(ctx *blockCtx, call *ast.CallExpr, v *ast.SelectorExpr,
 		// 		}
 		// 	}
 		// }
-		if call != nil && isUserStruct(t) {
-			if names := findUserStructAnonymous(ctx, t, name); names != nil {
-				ctx.infer.Pop()
-				x := &ast.SelectorExpr{X: v.X}
-				for i := 0; i < len(names)-1; i++ {
-					x.X = &ast.SelectorExpr{X: x.X, Sel: &ast.Ident{Name: names[i]}}
-				}
-				x.Sel = &ast.Ident{Name: names[len(names)-1]}
-				fun := &ast.SelectorExpr{X: x, Sel: v.Sel}
-				call.Fun = fun
-				return compileSelectorExpr(ctx, call, fun, compileByCallExpr)
-			}
-		}
-		//}
 		_, toptr, ok := findMethod(t, n > 0, name)
 		if !ok && isLower(name) {
 			name = strings.Title(name)
@@ -1788,6 +1748,19 @@ func compileSelectorExpr(ctx *blockCtx, call *ast.CallExpr, v *ast.SelectorExpr,
 		}
 		addr, kind, ok := pkg.Find(fnname)
 		if !ok {
+			if names := findUserStructAnonymous(ctx, t, name); names != nil {
+				ctx.infer.Pop()
+				x := &ast.SelectorExpr{X: v.X}
+				for i := 0; i < len(names)-1; i++ {
+					x.X = &ast.SelectorExpr{X: x.X, Sel: &ast.Ident{Name: names[i]}}
+				}
+				x.Sel = &ast.Ident{Name: names[len(names)-1]}
+				fun := &ast.SelectorExpr{X: x, Sel: v.Sel}
+				if call != nil {
+					call.Fun = fun
+				}
+				return compileSelectorExpr(ctx, call, fun, compileByCallExpr)
+			}
 			log.Panicln("compileSelectorExpr: method not found -", fnname)
 		}
 		if !compileByCallExpr && !autoCall {
