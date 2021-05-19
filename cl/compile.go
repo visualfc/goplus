@@ -275,6 +275,35 @@ func loadNamedType(ctx *blockCtx, d *ast.FuncDecl) {
 	}
 }
 
+func loadTypeDecl(ctx *blockCtx, decl *declType) {
+	if decl.complete {
+		return
+	}
+	decl.complete = true
+	for _, dep := range decl.deps {
+		loadTypeDecl(ctx, ctx.decls[dep])
+	}
+	loadType(ctx, decl.spec)
+}
+
+func loadMethodSet(ctx *blockCtx, decl *declType, cache map[string]bool) {
+	if cache[decl.name] {
+		return
+	}
+	cache[decl.name] = true
+	for _, dep := range decl.embed {
+		loadMethodSet(ctx, ctx.decls[dep], cache)
+	}
+	for _, dep := range decl.embedptr {
+		loadMethodSet(ctx, ctx.decls[dep], cache)
+	}
+	if nt, ok := ctx.named[decl.name]; ok {
+		reflectx.LoadMethodSet(decl.typ, toMethods(nt))
+	} else {
+		reflectx.LoadMethodSet(decl.typ, nil)
+	}
+}
+
 func loadFile(ctx *blockCtx, f *ast.File, imports map[string]string) {
 	file := newFileCtx(ctx)
 	last := len(f.Decls) - 1
@@ -282,7 +311,6 @@ func loadFile(ctx *blockCtx, f *ast.File, imports map[string]string) {
 	for name, pkg := range imports {
 		ctx.file.imports[name] = pkg
 	}
-	// load import
 	for _, decl := range f.Decls {
 		switch d := decl.(type) {
 		case *ast.GenDecl:
@@ -292,7 +320,7 @@ func loadFile(ctx *blockCtx, f *ast.File, imports map[string]string) {
 			}
 		}
 	}
-	//	load named type methods
+	// load named type methods
 	for _, decl := range f.Decls {
 		switch d := decl.(type) {
 		case *ast.FuncDecl:
@@ -301,13 +329,92 @@ func loadFile(ctx *blockCtx, f *ast.File, imports map[string]string) {
 			}
 		}
 	}
-	// load type & const
+	// load type decl
 	for _, decl := range f.Decls {
 		switch d := decl.(type) {
 		case *ast.GenDecl:
 			switch d.Tok {
 			case token.TYPE:
-				loadTypes(ctx, d)
+				for _, item := range d.Specs {
+					spec := item.(*ast.TypeSpec)
+					name := spec.Name.Name
+					if _, ok := ctx.decls[name]; ok {
+						log.Panicf("%v: %v redecalred in this block\n",
+							ctx.code(spec), name)
+					}
+					dt := &declType{
+						name: name,
+						spec: spec,
+					}
+					switch spec.Type.(type) {
+					case *ast.InterfaceType:
+						dt.kind = dtInterface
+						dt.decl = reflectx.NamedInterfaceOf(ctx.pkg.Name, name, nil, nil)
+					case *ast.StructType:
+						dt.kind = dtStruct
+						dt.decl = reflectx.NamedStructOf(ctx.pkg.Name, name, nil)
+					default:
+						dt.kind = dtType
+						dt.decl = reflectx.NamedTypeOf(ctx.pkg.Name, name, exec.TyEmptyInterface)
+					}
+					ctx.decls[name] = dt
+				}
+			}
+		}
+	}
+	// check depends
+	for _, decl := range ctx.decls {
+		ctx.cdecl = decl
+		typ := toType(ctx, decl.spec.Type).(reflect.Type)
+		if decl.kind == dtStruct {
+			for i := 0; i < typ.NumField(); i++ {
+				sf := typ.Field(i)
+				if !sf.Anonymous {
+					continue
+				}
+				ptr, t := countPtr(sf.Type)
+				if t.PkgPath() != ctx.pkg.Name {
+					continue
+				}
+				tname := t.Name()
+				if tname == decl.name && ptr == 0 {
+					log.Panicf("invalid recursive type %v", tname)
+				}
+				if _, ok := ctx.decls[tname]; ok {
+					if ptr > 0 {
+						decl.embedptr = append(decl.embedptr, tname)
+					} else {
+						decl.embed = append(decl.embed, tname)
+					}
+					decl.deps = append(decl.deps, tname)
+				}
+			}
+		}
+	}
+	// load decl type
+	for _, decl := range ctx.decls {
+		loadTypeDecl(ctx, decl)
+	}
+	// replace type field
+	rmap := make(map[reflect.Type]reflect.Type)
+	for _, decl := range ctx.decls {
+		rmap[decl.decl] = decl.typ
+	}
+	for _, decl := range ctx.decls {
+		if decl.kind == dtStruct {
+			reflectx.UpdateField(decl.typ, rmap)
+		}
+	}
+	mcheck := make(map[string]bool)
+	for _, decl := range ctx.decls {
+		mcheck[decl.name] = false
+		loadMethodSet(ctx, decl, mcheck)
+	}
+	// load const
+	for _, decl := range f.Decls {
+		switch d := decl.(type) {
+		case *ast.GenDecl:
+			switch d.Tok {
 			case token.CONST:
 				loadConsts(ctx, d)
 			}
@@ -334,8 +441,7 @@ func loadFile(ctx *blockCtx, f *ast.File, imports map[string]string) {
 		if decl.Type.Kind() == reflect.Struct {
 			typ := decl.Type
 			for i := 0; i < typ.NumField(); i++ {
-				_, ftyp := countPtr(typ.Field(i).Type)
-				if d, ok := ctx.types[ftyp]; ok {
+				if d, ok := ctx.types[typ.Field(i).Type]; ok {
 					decl.Depends = append(decl.Depends, d)
 				}
 			}
@@ -449,16 +555,45 @@ func toMethods(nt *namedType) []reflectx.Method {
 	return ms
 }
 
+func checkTypeMethodCount(ctx *blockCtx, decl *declType) (int, int) {
+	mlist, plist := checkTypeMethodList(ctx, decl, make(map[string]bool))
+	return len(mlist), len(plist)
+}
+
+func checkTypeMethodList(ctx *blockCtx, decl *declType, cache map[string]bool) (mlist, plist []string) {
+	if cache[decl.name] {
+		return
+	}
+	cache[decl.name] = true
+	if nt, ok := ctx.named[decl.name]; ok {
+		mlist = append(mlist, nt.methods...)
+		plist = append(plist, nt.methods...)
+		plist = append(plist, nt.pmethods...)
+	}
+	for _, tname := range decl.embed {
+		m, p := checkTypeMethodList(ctx, ctx.decls[tname], cache)
+		mlist = append(mlist, m...)
+		plist = append(plist, p...)
+	}
+	for _, tname := range decl.embedptr {
+		_, p := checkTypeMethodList(ctx, ctx.decls[tname], cache)
+		mlist = append(mlist, p...)
+		plist = append(plist, p...)
+	}
+	return
+}
+
 func loadType(ctx *blockCtx, spec *ast.TypeSpec) {
 	if ctx.exists(spec.Name.Name) {
 		log.Panicln("loadType failed: symbol exists -", spec.Name.Name)
 	}
 	t := toType(ctx, spec.Type).(reflect.Type)
 	typ := reflectx.NamedTypeOf(ctx.pkg.Name, spec.Name.Name, t)
-	if nt, ok := ctx.named[spec.Name.Name]; ok {
-		typ = reflectx.MethodOf(typ, toMethods(nt))
-	} else if typ.Kind() == reflect.Struct {
-		typ = reflectx.MethodOf(typ, nil)
+
+	if decl, ok := ctx.decls[spec.Name.Name]; ok {
+		m, a := checkTypeMethodCount(ctx, decl)
+		typ = reflectx.MethodSetOf(typ, m, a)
+		decl.typ = typ
 	}
 	ctx.out.DefineType(typ, spec.Name.Name)
 

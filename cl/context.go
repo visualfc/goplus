@@ -30,6 +30,37 @@ import (
 
 // -----------------------------------------------------------------------------
 
+type declKind int
+
+const (
+	dtType declKind = iota
+	dtInterface
+	dtStruct
+)
+
+type declType struct {
+	name       string
+	spec       *ast.TypeSpec
+	decl       reflect.Type
+	typ        reflect.Type
+	vtyp       reflect.Type
+	kind       declKind
+	deps       []string
+	embed      []string
+	embedptr   []string
+	complete   bool
+	loadmethod bool
+}
+
+func (d *declType) appendDeps(dep string) {
+	for _, v := range d.deps {
+		if v == dep {
+			return
+		}
+	}
+	d.deps = append(d.deps, dep)
+}
+
 type pkgCtx struct {
 	exec.Package
 	infer   exec.Stack
@@ -40,6 +71,8 @@ type pkgCtx struct {
 	types   map[reflect.Type]*typeDecl
 	mtype   map[reflect.Type]reflect.Type
 	named   map[string]*namedType
+	decls   map[string]*declType
+	cdecl   *declType
 	pkg     *ast.Package
 	fset    *token.FileSet
 }
@@ -51,6 +84,7 @@ func newPkgCtx(out exec.Builder, pkg *ast.Package, fset *token.FileSet) *pkgCtx 
 	p.types = make(map[reflect.Type]*typeDecl)
 	p.mtype = make(map[reflect.Type]reflect.Type)
 	p.named = make(map[string]*namedType)
+	p.decls = make(map[string]*declType)
 	p.infer.Init()
 	return p
 }

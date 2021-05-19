@@ -228,7 +228,7 @@ func toStructType(ctx *blockCtx, v *ast.StructType) iType {
 		fields = append(fields, toStructField(ctx, field)...)
 	}
 	styp := reflectx.StructOf(fields)
-	return reflectx.MethodOf(styp, nil)
+	return reflectx.StructToMethodSet(styp)
 }
 
 func toInterfaceType(ctx *blockCtx, v *ast.InterfaceType) iType {
@@ -280,6 +280,15 @@ func toExternalType(ctx *blockCtx, v *ast.SelectorExpr) iType {
 func toIdentType(ctx *blockCtx, ident string) iType {
 	if typ, ok := ctx.builtin.FindType(ident); ok {
 		return typ
+	}
+	if t, ok := ctx.decls[ident]; ok {
+		if t.typ != nil {
+			return t.typ
+		}
+		if ctx.cdecl.kind != dtStruct {
+			ctx.cdecl.appendDeps(ident)
+		}
+		return t.decl
 	}
 	typ, err := ctx.findType(ident)
 	if err != nil {
