@@ -2615,7 +2615,6 @@ var testStarExprClauses = map[string]testData{
 					A(&a1, &c)
 					*c.m["foo"] = 8
 					*c.s[0] = 10
-<<<<<<< HEAD
 					println(a1, *c.b, *c.m["foo"], *c.s[0], *c.s[0+0])
 				}
 				`, "3 3 8 10 10\n", false},
@@ -2653,14 +2652,7 @@ var testStarExprClauses = map[string]testData{
 				*c.s[Index()] = 11
 				println(a1, *c.b, *c.m["foo"], *c.s[0])
 				`, "3 3 8 11\n", false},
-	"start expr ptr conv": {`
-=======
-					*c.s[Index()] = 11
-					println(a1, *c.b, *c.m["foo"], *c.s[0])
-	
-						`, "3 3 8 11\n", false},
 	"star expr ptr conv": {`
->>>>>>> staraddr
 					a := 10
 					println(*(*int)(&a))
 					`, "10\n", false},
