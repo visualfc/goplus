@@ -142,6 +142,7 @@ const (
 	opRecv          = 52 // reserved(26)
 	opTypeAssert    = 53 // twoValue(2) type(24)
 	opTypeMethod    = 54
+	opBlock         = 55 // addr(26)
 )
 
 const (
@@ -236,6 +237,7 @@ var instrInfos = []InstrInfo{
 	opRecv:          {"recv", "", "", 0},                                  // reserved(26)
 	opTypeAssert:    {"typeAssert", "twoValue", "type", (2 << 8) | 24},    // type(26)
 	opTypeMethod:    {"typeMethod", "", "type", 26},                       // type(26)
+	opBlock:         {"block", "", "addr", 26},
 }
 
 // -----------------------------------------------------------------------------
@@ -246,6 +248,7 @@ type Code struct {
 	valConsts   []interface{}
 	funs        []*FuncInfo
 	funvs       []*FuncInfo
+	blocks      []*BlockInfo
 	comprehens  []*Comprehension
 	fors        []*ForPhrase
 	types       []reflect.Type
@@ -318,6 +321,7 @@ type Builder struct {
 	labels map[*Label]int
 	funcs  map[*FuncInfo]int
 	types  map[reflect.Type]uint32
+	iblock int
 	*varManager
 }
 

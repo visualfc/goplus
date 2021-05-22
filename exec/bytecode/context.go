@@ -27,7 +27,7 @@ import (
 // -----------------------------------------------------------------------------
 
 type varScope struct {
-	vars   varsContext
+	vars   []reflect.Value
 	args   []reflect.Value
 	parent *varScope
 }
@@ -36,11 +36,12 @@ type varScope struct {
 type Context struct {
 	Stack
 	varScope
-	code   *Code
-	defers *theDefer
-	exec   *execInfo
-	ip     int
-	base   int
+	code       *Code
+	defers     *theDefer
+	exec       *execInfo
+	blockScope []varScope
+	ip         int
+	base       int
 }
 
 func newSimpleContext(data []interface{}) *Context {
@@ -78,10 +79,13 @@ func (ctx *Context) Go(arity int, f func(goctx *Context)) {
 
 // CloneSetVarScope clone already set varScope to new context
 func (ctx *Context) CloneSetVarScope(new *Context) {
-	if !ctx.vars.IsValid() {
-		return
-	}
-	for i := 0; i < ctx.vars.NumField(); i++ {
+	// if !ctx.vars.IsValid() {
+	// 	return
+	// }
+	// for i := 0; i < ctx.vars.NumField(); i++ {
+	// 	new.varScope.setVar(uint32(i), ctx.varScope.getVar(uint32(i)))
+	// }
+	for i := 0; i < len(ctx.vars); i++ {
 		new.varScope.setVar(uint32(i), ctx.varScope.getVar(uint32(i)))
 	}
 }
@@ -100,7 +104,6 @@ func (ctx *Context) switchScope(parent *varScope, vmgr *varManager, ins []reflec
 	ctx.base = len(ctx.data)
 	ctx.parent = parent
 	ctx.vars = vmgr.makeVarsContext(ctx)
-
 	ctx.args = make([]reflect.Value, len(ins))
 	off := len(ctx.data) - len(ins)
 	for i, in := range ins {
@@ -284,6 +287,7 @@ var _execTable = [...]func(i Instr, p *Context){
 	opStruct:        execStruct,
 	opSend:          execSend,
 	opRecv:          execRecv,
+	opBlock:         execBlock,
 }
 
 var execTable []func(i Instr, p *Context)

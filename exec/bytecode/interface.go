@@ -513,11 +513,13 @@ func (p *iBuilder) Resolve() exec.Code {
 
 // DefineBlock
 func (p *iBuilder) DefineBlock() exec.Builder {
+	((*Builder)(p)).DefineBlock()
 	return p
 }
 
 // EndBlock
 func (p *iBuilder) EndBlock() exec.Builder {
+	((*Builder)(p)).EndBlock()
 	return p
 }
 

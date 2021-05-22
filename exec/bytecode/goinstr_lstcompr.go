@@ -416,6 +416,41 @@ func ToValues(args []interface{}) []reflect.Value {
 
 // -----------------------------------------------------------------------------
 
+type BlockInfo struct {
+	end  int
+	nvar int
+}
+
+func execBlock(i Instr, p *Context) {
+	addr := (i & bitsOperand)
+	b := p.code.blocks[addr]
+	if b.nvar == len(p.vars) {
+		return
+	}
+	for i := b.nvar; i < len(p.vars); i++ {
+		v := reflect.New(p.vars[i].Elem().Type())
+		p.vars[i] = v
+	}
+	p.blockScope = append(p.blockScope, p.varScope)
+	p.Exec(p.ip, b.end)
+	p.blockScope = p.blockScope[:len(p.blockScope)-1]
+}
+
+func (p *Builder) DefineBlock() {
+	b := &BlockInfo{}
+	b.nvar = len(p.varManager.vlist)
+	code := p.code
+	addr := uint32(len(code.blocks))
+	code.blocks = append(code.blocks, b)
+	code.data = append(code.data, (opBlock<<bitsOpShift)|addr)
+	p.iblock = len(code.blocks) - 1
+}
+
+func (p *Builder) EndBlock() {
+	p.code.blocks[p.iblock].end = len(p.code.data)
+	p.iblock--
+}
+
 // ForPhrase represents a for range phrase.
 type ForPhrase struct {
 	Key, Value *Var // Key, Value may be nil
