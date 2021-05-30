@@ -141,7 +141,7 @@ const (
 	opSend          = 51 // reserved(26)
 	opRecv          = 52 // reserved(26)
 	opTypeAssert    = 53 // twoValue(2) type(24)
-	opTypeMethod    = 54
+	opTypeMethod    = 54 // type(26)
 	opBlock         = 55 // addr(26)
 )
 
