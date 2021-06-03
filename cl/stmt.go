@@ -366,7 +366,7 @@ func compileSwitchStmt(ctx *blockCtx, v *ast.SwitchStmt) {
 	var defaultBody []ast.Stmt
 	ctxSw := ctx
 	out := ctx.out
-	done := ctx.NewLabel("")
+	done := ctx.NewLabel("done")
 	labelName := ""
 	if ctx.currentLabel != nil && ctx.currentLabel.Stmt == v {
 		labelName = ctx.currentLabel.Label.Name
@@ -413,7 +413,7 @@ func compileSwitchStmt(ctx *blockCtx, v *ast.SwitchStmt) {
 			out.Label(withoutCheck)
 			withoutCheck = nil
 		}
-		out.Default()
+		//out.Default()
 	} else {
 		for idx, item := range v.Body.List {
 			c, ok := item.(*ast.CaseClause)

@@ -288,6 +288,8 @@ func (p *Builder) EndStmt(stmt, start interface{}) *Builder {
 		}
 		var val = p.rhs.Pop()
 		switch v := val.(type) {
+		case *ast.Ident:
+			return p
 		case ast.Expr:
 			node = &ast.ExprStmt{X: v}
 		case ast.Stmt:
