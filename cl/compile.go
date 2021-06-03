@@ -391,9 +391,17 @@ func loadFile(ctx *blockCtx, f *ast.File, imports map[string]string) {
 			}
 		}
 	}
+	// load interface decl type
+	for _, decl := range ctx.decls {
+		if decl.kind == dtInterface {
+			loadTypeDecl(ctx, decl)
+		}
+	}
 	// load decl type
 	for _, decl := range ctx.decls {
-		loadTypeDecl(ctx, decl)
+		if decl.kind != dtInterface {
+			loadTypeDecl(ctx, decl)
+		}
 	}
 	// replace type field
 	rmap := make(map[reflect.Type]reflect.Type)
@@ -409,6 +417,9 @@ func loadFile(ctx *blockCtx, f *ast.File, imports map[string]string) {
 	for _, decl := range ctx.decls {
 		mcheck[decl.name] = false
 		loadMethodSet(ctx, decl, mcheck)
+		if decl.kind == dtInterface {
+			setInterfaceType(ctx, decl.typ, decl.spec.Type.(*ast.InterfaceType))
+		}
 	}
 	// load const
 	for _, decl := range f.Decls {
@@ -468,6 +479,9 @@ func loadFile(ctx *blockCtx, f *ast.File, imports map[string]string) {
 
 func registerTypeDecls(ctx *blockCtx, pkg *bytecode.GoPackage, decls []*typeDecl) {
 	for _, decl := range decls {
+		if decl.Type.Kind() == reflect.Interface {
+			continue
+		}
 		if len(decl.Depends) > 0 {
 			registerTypeDecls(ctx, pkg, decl.Depends)
 		}
@@ -570,6 +584,14 @@ func checkTypeMethodList(ctx *blockCtx, decl *declType, cache map[string]bool) (
 		plist = append(plist, nt.methods...)
 		plist = append(plist, nt.pmethods...)
 	}
+	if decl.kind == dtInterface {
+		var methods []string
+		for i := 0; i < decl.typ.NumMethod(); i++ {
+			methods = append(methods, decl.typ.Method(i).Name)
+		}
+		mlist = append(mlist, methods...)
+		plist = append(plist, methods...)
+	}
 	for _, tname := range decl.embed {
 		m, p := checkTypeMethodList(ctx, ctx.decls[tname], cache)
 		mlist = append(mlist, m...)
@@ -589,10 +611,11 @@ func loadType(ctx *blockCtx, spec *ast.TypeSpec) {
 	}
 	t := toType(ctx, spec.Type).(reflect.Type)
 	typ := reflectx.NamedTypeOf(ctx.pkg.Name, spec.Name.Name, t)
-
 	if decl, ok := ctx.decls[spec.Name.Name]; ok {
-		m, a := checkTypeMethodCount(ctx, decl)
-		typ = reflectx.MethodSetOf(typ, m, a)
+		if decl.kind != dtInterface {
+			m, a := checkTypeMethodCount(ctx, decl)
+			typ = reflectx.MethodSetOf(typ, m, a)
+		}
 		decl.typ = typ
 	}
 	ctx.out.DefineType(typ, spec.Name.Name)
