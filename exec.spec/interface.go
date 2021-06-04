@@ -200,9 +200,6 @@ type Builder interface {
 	// CaseNE instr
 	CaseNE(l Label, arity int) Builder
 
-	// Default instr
-	Default() Builder
-
 	// WrapIfErr instr
 	WrapIfErr(nret int, l Label) Builder
 

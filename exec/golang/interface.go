@@ -142,12 +142,6 @@ func (p *iBuilder) CaseNE(l exec.Label, arity int) exec.Builder {
 	return p
 }
 
-// Default instr
-func (p *iBuilder) Default() exec.Builder {
-	((*Builder)(p)).Default()
-	return p
-}
-
 // WrapIfErr instr
 func (p *iBuilder) WrapIfErr(nret int, l exec.Label) exec.Builder {
 	((*Builder)(p)).WrapIfErr(nret, l.(*Label))

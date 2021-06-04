@@ -139,12 +139,6 @@ func (p *Builder) CaseNE(l *Label, arity int) *Builder {
 	return p
 }
 
-// Default instr
-func (p *Builder) Default() *Builder {
-	p.rhs.PopN(1)
-	return p
-}
-
 // WrapIfErr instr
 func (p *Builder) WrapIfErr(nret int, l *Label) *Builder {
 	args := p.wrapCall(nret)

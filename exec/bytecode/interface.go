@@ -121,12 +121,6 @@ func (p *iBuilder) CaseNE(l exec.Label, arity int) exec.Builder {
 	return p
 }
 
-// Default instr
-func (p *iBuilder) Default() exec.Builder {
-	((*Builder)(p)).Default()
-	return p
-}
-
 // Defer instr
 func (p *iBuilder) Defer() exec.Builder {
 	((*Builder)(p)).Defer()

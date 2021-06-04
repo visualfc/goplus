@@ -177,11 +177,6 @@ func (p *Builder) CaseNE(l *Label, arity int) *Builder {
 	return p.labelOp((opCaseNE<<bitsOpShift)|(uint32(arity)<<bitsOpCaseNEShift), l)
 }
 
-// Default instr
-func (p *Builder) Default() *Builder {
-	return p.Pop(1)
-}
-
 // -----------------------------------------------------------------------------
 
 type errWrap struct {

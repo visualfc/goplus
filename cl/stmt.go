@@ -413,7 +413,6 @@ func compileSwitchStmt(ctx *blockCtx, v *ast.SwitchStmt) {
 			out.Label(withoutCheck)
 			withoutCheck = nil
 		}
-		//out.Default()
 	} else {
 		for idx, item := range v.Body.List {
 			c, ok := item.(*ast.CaseClause)
