@@ -59,7 +59,7 @@ func (p *lshValue) checkType(t reflect.Type) {
 }
 
 func (p *lshValue) bound(t reflect.Type) {
-	v := boundConst(p.x.v, t)
+	v := boundConst(p.x, t)
 	p.x.v = v
 	p.x.kind = t.Kind()
 }
@@ -273,10 +273,15 @@ type constVal struct {
 	v       interface{}
 	kind    iKind
 	reserve exec.Reserved
+	typed   reflect.Type
 }
 
 func newConstVal(v interface{}, kind iKind) *constVal {
 	return &constVal{v: v, kind: kind, reserve: exec.InvalidReserved}
+}
+
+func (c *constVal) IsTyped() bool {
+	return c.typed != nil && c.typed.PkgPath() != ""
 }
 
 func (p *constVal) Kind() iKind {
@@ -342,7 +347,7 @@ func (p *constVal) bound(t reflect.Type, b exec.Builder) {
 	if kind == reflect.Interface && astutil.IsConstBound(p.kind) {
 		t = exec.TypeFromKind(p.kind)
 	}
-	v := boundConst(p.v, t)
+	v := boundConst(p, t)
 	p.v, p.kind = v, kind
 	p.reserve.Push(b, v)
 }
@@ -360,7 +365,7 @@ func unaryOp(op exec.Operator, x *constVal) *constVal {
 		log.Panicln("unaryOp failed: invalid argument type.")
 	}
 	t := exec.TypeFromKind(kindReal)
-	vx := boundConst(x.v, t)
+	vx := boundConst(x, t)
 	v := CallBuiltinOp(kindReal, op, vx)
 	return &constVal{kind: xkind, v: v, reserve: -1}
 }
@@ -399,8 +404,8 @@ func binaryOp(op exec.Operator, x, y *constVal) *constVal {
 		ctyp := exec.TypeFromKind(y.kind)
 		y.v = reflect.ValueOf(y.v).Convert(ctyp).Interface()
 	}
-	vx := boundConst(x.v, t)
-	vy := boundConst(y.v, t)
+	vx := boundConst(x, t)
+	vy := boundConst(y, t)
 	v := CallBuiltinOp(kindReal, op, vx, vy)
 	if ctyp != nil {
 		v = reflect.ValueOf(v).Convert(xtyp).Interface()
@@ -441,9 +446,9 @@ func isOverflowsIntByUint64(v uint64, intSize int) bool {
 	return v > uint64(math.MaxInt64)
 }
 
-func boundConst(v interface{}, t reflect.Type) interface{} {
+func boundConst(c *constVal, t reflect.Type) interface{} {
 	kind := kindOf(t)
-	if v == nil {
+	if c.v == nil {
 		if kind >= reflect.Chan && kind <= reflect.Slice {
 			return reflect.Zero(t).Interface()
 		} else if kind == reflect.UnsafePointer {
@@ -451,10 +456,13 @@ func boundConst(v interface{}, t reflect.Type) interface{} {
 		}
 		log.Panicln("boundConst: can't convert nil into", t)
 	}
-	sval := reflect.ValueOf(v)
+	sval := reflect.ValueOf(c.v)
+	if c.IsTyped() {
+		return sval.Convert(c.typed).Interface()
+	}
 	st := sval.Type()
-	if t == st || st.PkgPath() != "" {
-		return v
+	if t == st {
+		return c.v
 	}
 	if kind == reflect.Interface {
 		skind := sval.Kind()
