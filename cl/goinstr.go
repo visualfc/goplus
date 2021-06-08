@@ -438,8 +438,7 @@ func compileTypeCast(typ reflect.Type, ctx *blockCtx, v *ast.CallExpr) func() {
 		if cons, ok := in.(*constVal); ok {
 			cons.kind = typ.Kind()
 			if typ.PkgPath() != "" {
-				v := reflect.ValueOf(cons.v).Convert(typ)
-				c := newConstVal(v.Interface(), cons.kind)
+				c := newConstVal(cons.v, cons.kind)
 				c.typed = typ
 				ctx.infer.Ret(1, &goValue{t: typ, c: c})
 				return func() {

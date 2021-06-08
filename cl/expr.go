@@ -915,10 +915,8 @@ func compileCallExprCall(ctx *blockCtx, exprFun func(), v *ast.CallExpr, ct call
 			if vfn.isMethod != 0 {
 				exprX := compileExpr(ctx, v.Fun.(*ast.SelectorExpr).X)
 				x := ctx.infer.Get(-1)
-				if c, ok := x.(*constVal); ok {
-					if t := reflect.TypeOf(c.v); t.PkgPath() != "" {
-						x = &goValue{t: t, c: c}
-					}
+				if c, ok := x.(*constVal); ok && c.IsTyped() {
+					x = &goValue{t: c.typed, c: c}
 				}
 				recv := x.(*goValue)
 				if vfn.Type().In(0).Kind() != reflect.Ptr {
@@ -1478,10 +1476,8 @@ func compileSelectorExpr(ctx *blockCtx, call *ast.CallExpr, v *ast.SelectorExpr,
 		return exprX
 	}
 	x := ctx.infer.Get(-1)
-	if c, ok := x.(*constVal); ok {
-		if t := reflect.TypeOf(c.v); t.PkgPath() != "" {
-			x = &goValue{t: t, c: c}
-		}
+	if c, ok := x.(*constVal); ok && c.IsTyped() {
+		x = &goValue{t: c.typed, c: c}
 	}
 	switch vx := x.(type) {
 	case *nonValue:
