@@ -289,6 +289,9 @@ func (p *constVal) Kind() iKind {
 }
 
 func (p *constVal) Type() reflect.Type {
+	if p.IsTyped() {
+		return p.typed
+	}
 	if isConstBound(p.kind) {
 		return exec.TypeFromKind(p.kind)
 	}
@@ -328,6 +331,9 @@ func (p *constVal) boundType() reflect.Type {
 
 func boundType(in iValue) reflect.Type {
 	if v, ok := in.(*constVal); ok {
+		if v.IsTyped() {
+			return v.typed
+		}
 		return v.boundType()
 	}
 	return in.Type()
@@ -365,9 +371,11 @@ func unaryOp(op exec.Operator, x *constVal) *constVal {
 		log.Panicln("unaryOp failed: invalid argument type.")
 	}
 	t := exec.TypeFromKind(kindReal)
-	vx := boundConst(x, t)
+	vx := boundConstCheck(x, t, false)
 	v := CallBuiltinOp(kindReal, op, vx)
-	return &constVal{kind: xkind, v: v, reserve: -1}
+	c := &constVal{kind: xkind, v: v, reserve: -1}
+	c.typed = x.typed
+	return c
 }
 
 func binaryOp(op exec.Operator, x, y *constVal) *constVal {
@@ -393,24 +401,14 @@ func binaryOp(op exec.Operator, x, y *constVal) *constVal {
 		kind = i.Out
 	}
 	t := exec.TypeFromKind(kindReal)
-	var ctyp reflect.Type
-	xtyp := reflect.TypeOf(x.v)
-	if xtyp != nil && xtyp.PkgPath() != "" {
-		ctyp = exec.TypeFromKind(x.kind)
-		x.v = reflect.ValueOf(x.v).Convert(ctyp).Interface()
-	}
-	ytyp := reflect.TypeOf(y.v)
-	if ytyp != nil && ytyp.PkgPath() != "" {
-		ctyp := exec.TypeFromKind(y.kind)
-		y.v = reflect.ValueOf(y.v).Convert(ctyp).Interface()
-	}
-	vx := boundConst(x, t)
-	vy := boundConst(y, t)
+	vx := boundConstCheck(x, t, false)
+	vy := boundConstCheck(y, t, false)
 	v := CallBuiltinOp(kindReal, op, vx, vy)
-	if ctyp != nil {
-		v = reflect.ValueOf(v).Convert(xtyp).Interface()
+	c := &constVal{kind: kind, v: v, reserve: -1}
+	if !(op >= exec.OpLT && op <= exec.OpNENil) {
+		c.typed = x.typed
 	}
-	return &constVal{kind: kind, v: v, reserve: -1}
+	return c
 }
 
 func kindOf(t reflect.Type) exec.Kind {
@@ -447,6 +445,10 @@ func isOverflowsIntByUint64(v uint64, intSize int) bool {
 }
 
 func boundConst(c *constVal, t reflect.Type) interface{} {
+	return boundConstCheck(c, t, true)
+}
+
+func boundConstCheck(c *constVal, t reflect.Type, chkTyped bool) interface{} {
 	kind := kindOf(t)
 	if c.v == nil {
 		if kind >= reflect.Chan && kind <= reflect.Slice {
@@ -457,7 +459,7 @@ func boundConst(c *constVal, t reflect.Type) interface{} {
 		log.Panicln("boundConst: can't convert nil into", t)
 	}
 	sval := reflect.ValueOf(c.v)
-	if c.IsTyped() {
+	if chkTyped && c.IsTyped() {
 		return sval.Convert(c.typed).Interface()
 	}
 	st := sval.Type()
