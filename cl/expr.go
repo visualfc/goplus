@@ -827,6 +827,11 @@ func binaryOpResult(op exec.Operator, x, y interface{}) (exec.Kind, iValue) {
 		log.Panicln("binaryOp: argument isn't an expr.")
 	}
 	kind := vx.Kind()
+	ykind := vy.Kind()
+	if (op >= exec.OpEQ && op <= exec.OpNENil) &&
+		(kind == reflect.Interface || ykind == reflect.Interface) {
+		return reflect.Interface, &goValue{t: exec.TyBool}
+	}
 	if !isConstBound(kind) {
 		kind = vy.Kind()
 		if xlsh, xok := x.(*lshValue); xok {

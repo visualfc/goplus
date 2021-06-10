@@ -2966,3 +2966,57 @@ func TestTypedBasic(t *testing.T) {
 	println(e1, e2, e3, e4, e5, e6)
 	`, testTypedBasicCheck)
 }
+
+func TestCompareInterface(t *testing.T) {
+	cltest.Expect(t, `
+	var i interface{} = "hello"
+	println(i == i)
+	println(i != i)
+	println(i == interface{}("hello"))
+	println(i != interface{}("hello"))
+	println(i == "hello")
+	println(i != "hello")
+	println(i == 100)
+	println(i != 100)
+	println(i == nil)
+	println(i != nil)
+	`, "true\nfalse\ntrue\nfalse\ntrue\nfalse\nfalse\ntrue\nfalse\ntrue\n")
+	cltest.Expect(t, `
+	var i interface{} = 100
+	println(i == i)
+	println(i != i)
+	println(i == interface{}(100))
+	println(i != interface{}(100))
+	println(i == "hello")
+	println(i != "hello")
+	println(i == 100)
+	println(i != 100)
+	println(i == nil)
+	println(i != nil)
+	`, "true\nfalse\ntrue\nfalse\nfalse\ntrue\ntrue\nfalse\nfalse\ntrue\n")
+	cltest.Expect(t, `
+	var i interface{}
+	println(i == i)
+	println(i != i)
+	println(i == interface{}("hello"))
+	println(i != interface{}("hello"))
+	println(i == "hello")
+	println(i != "hello")
+	println(i == 100)
+	println(i != 100)
+	println(i == nil)
+	println(i != nil)
+	`, "true\nfalse\nfalse\ntrue\nfalse\ntrue\nfalse\ntrue\ntrue\nfalse\n")
+	cltest.Expect(t, `
+	var t *struct{}
+	var i interface{} = t
+	println(i == t)
+	println(i != t)
+	println(i == i)
+	println(i != i)
+	println(i == nil)
+	println(i != nil)
+	println(i.(*struct{}) == nil)
+	println(i.(*struct{}) != nil)
+	`, "true\nfalse\ntrue\nfalse\nfalse\ntrue\ntrue\nfalse\n")
+}
