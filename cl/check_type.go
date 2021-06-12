@@ -213,7 +213,9 @@ func checkType(t reflect.Type, v interface{}, b exec.Builder) {
 					log.Panicf("checkType: cannot use `%v` as type `%v` in argument to produce", typVal, t)
 				}
 			default:
-				log.Panicf("checkType: unexptected value type, require `%v(%p)`, but got `%v(%p)`\n", t, t, typVal, typVal)
+				if !typVal.AssignableTo(t) {
+					log.Panicf("checkType: unexptected value type, require `%v(%p)`, but got `%v(%p)`\n", t, t, typVal, typVal)
+				}
 			}
 		}
 	}

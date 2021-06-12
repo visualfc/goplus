@@ -402,6 +402,16 @@ func loadFile(ctx *blockCtx, f *ast.File, imports map[string]string) {
 			loadTypeDecl(ctx, decl)
 		}
 	}
+	rtyp := make(map[string]reflect.Type)
+	for _, decl := range ctx.decls {
+		rtyp[decl.name] = decl.typ
+	}
+	for _, decl := range ctx.decls {
+		if len(decl.deps) > 0 {
+			reflectx.ReplaceType(decl.typ, rtyp)
+		}
+	}
+
 	// replace type field
 	rmap := make(map[reflect.Type]reflect.Type)
 	for _, decl := range ctx.decls {
