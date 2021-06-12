@@ -122,6 +122,7 @@ func (p *execVar) getType() reflect.Type {
 }
 
 type stackVar struct {
+	fun   exec.FuncInfo
 	typ   reflect.Type
 	index int32
 }
