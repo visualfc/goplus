@@ -469,7 +469,10 @@ func binaryOp(xop token.Token, op exec.Operator, x, y *constVal) *constVal {
 		}
 		cv := &constVal{kind: kind, v: v, reserve: -1}
 		if isBoundNumberType(kind) {
-			return newConstVal(boundConst(cv, t), kind)
+			cv = newConstVal(boundConst(cv, t), kind)
+		}
+		if !(op >= exec.OpLT && op <= exec.OpNENil) {
+			cv.typed = x.typed
 		}
 		return cv
 	}
