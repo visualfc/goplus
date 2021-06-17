@@ -3844,3 +3844,15 @@ func TestCompareInterface(t *testing.T) {
 	println(i.(*struct{}) != nil)
 	`, "true\nfalse\ntrue\nfalse\nfalse\ntrue\ntrue\nfalse\n")
 }
+
+func TestInit(t *testing.T) {
+	cltest.Expect(t, `
+	func init() {
+		println("init1")
+	}
+	func init() {
+		println("init2")
+	}
+	println("main")
+	`, "init1\ninit2\nmain\n")
+}

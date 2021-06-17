@@ -68,6 +68,7 @@ type pkgCtx struct {
 	out     exec.Builder
 	usedfns []*funcDecl
 	funcs   []*funcDecl
+	inits   []*funcDecl
 	types   map[reflect.Type]*typeDecl
 	mtype   map[reflect.Type]reflect.Type
 	named   map[string]*namedType
@@ -428,6 +429,10 @@ func (p *blockCtx) insertVar(name string, typ reflect.Type, inferOnly ...bool) *
 }
 
 func (p *blockCtx) insertFunc(name string, fun *funcDecl) {
+	if name == "init" {
+		p.inits = append(p.inits, fun)
+		return
+	}
 	if p.exists(name) {
 		log.Panicln("insertFunc failed: symbol exists -", name)
 	}
