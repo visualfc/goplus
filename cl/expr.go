@@ -263,8 +263,30 @@ func compileIdentLHS(ctx *blockCtx, name string, mode compileMode) {
 			} else {
 				ctx.out.Store(addr.(*stackVar).fun, addr.(*stackVar).index)
 			}
+		} else if op, ok := addrops[mode]; ok {
+			fun := addr.(*stackVar).fun
+			index := addr.(*stackVar).index
+			if typ.Kind() == reflect.Ptr {
+				ctx.out.Load(fun, index)
+				elem := addrTyp
+				for i := 0; i < ctx.indirect; i++ {
+					elem = elem.Elem()
+					ctx.out.AddrOp(kindOf(elem), exec.OpAddrVal)
+				}
+				ctx.out.AddrOp(kindOf(typ), op)
+			} else if ctx.indirect > 0 {
+				ctx.out.Load(fun, index)
+				elem := addrTyp
+				for i := 0; i < ctx.indirect-1; i++ {
+					elem = elem.Elem()
+					ctx.out.AddrOp(kindOf(elem), exec.OpAddrVal)
+				}
+				ctx.out.AddrOp(kindOf(typ), op)
+			} else {
+				ctx.out.Addr(fun, index).AddrOp(kindOf(typ), op)
+			}
 		} else {
-			panic("compileIdentLHS: todo")
+			log.Panicln("compileIdentLHS failed: unknown op -", mode)
 		}
 	}
 }
@@ -719,7 +741,7 @@ func compileUnaryExpr(ctx *blockCtx, v *ast.UnaryExpr) func() {
 		}
 		if v.Op == token.AND {
 			vx := x.(iValue)
-			t := reflect.TypeOf(reflect.New(vx.Type()).Interface())
+			t := reflect.PtrTo(vx.Type())
 			ret := &goValue{t: t}
 			ctx.infer.Ret(1, ret)
 			return func() {

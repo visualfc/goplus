@@ -27,9 +27,10 @@ import (
 // -----------------------------------------------------------------------------
 
 type varScope struct {
-	vars   []reflect.Value
-	args   []reflect.Value
-	parent *varScope
+	vars    []reflect.Value
+	args    []reflect.Value
+	argsLen int
+	parent  *varScope
 }
 
 // A Context represents the context of an executor.
@@ -98,20 +99,28 @@ func (ctx *Context) switchScope(parent *varScope, vmgr *varManager, ins []reflec
 	old.ip = ctx.ip
 	old.varScope = ctx.varScope
 	old.args = ctx.args
+	old.argsLen = len(ctx.args)
 	ctx.base = len(ctx.data)
 	ctx.parent = parent
 	ctx.vars = vmgr.makeVarsContext(ctx)
 	ctx.args = make([]reflect.Value, len(ins))
-	off := len(ctx.data) - len(ins)
-	for i, in := range ins {
-		v := reflect.ValueOf(ctx.data[off+i])
+	//offset
+	size := ctx.Len() - len(ctx.args) - len(ins)
+	soff := len(ctx.args)
+	for i := 0; i < size; i++ {
+		v := ctx.data[soff+i]
+		ctx.args = append(ctx.args, reflect.ValueOf(v))
+	}
+	for i := len(ins); i > 0; i-- {
+		v := reflect.ValueOf(ctx.Get(-i))
 		if v.Kind() == reflect.Ptr {
-			ctx.args[i] = v
+			ctx.args = append(ctx.args, v)
 		} else {
-			ctx.args[i] = reflect.New(in).Elem()
+			nv := reflect.New(ins[len(ins)-i]).Elem()
 			if v.IsValid() {
-				ctx.args[i].Set(v)
+				nv.Set(v)
 			}
+			ctx.args = append(ctx.args, nv)
 		}
 	}
 	return
@@ -121,7 +130,7 @@ func (ctx *Context) restoreScope(old savedScopeCtx) {
 	ctx.ip = old.ip
 	ctx.base = old.base
 	ctx.varScope = old.varScope
-	ctx.args = old.args
+	ctx.args = ctx.args[:old.argsLen]
 }
 
 func (ctx *Context) getScope(local bool) *varScope {
