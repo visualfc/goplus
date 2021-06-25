@@ -155,9 +155,11 @@ func makeStruct(typStruct reflect.Type, arity int, p *Context) {
 	}
 	v := reflect.New(typStruct).Elem()
 	for i := 0; i < n; i += 2 {
-		index := args[i].(int)
-		//reflectx.Field(v, index)
-		reflectx.SetValue(reflectx.Field(v, index), reflect.ValueOf(args[i+1]))
+		x := reflect.ValueOf(args[i+1])
+		if x.IsValid() {
+			index := args[i].(int)
+			reflectx.SetValue(reflectx.Field(v, index), x)
+		}
 	}
 	if ptr {
 		p.Ret(n, v.Addr().Interface())
